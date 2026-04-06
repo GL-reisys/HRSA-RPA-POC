@@ -1,0 +1,56 @@
+{
+  "external_organizations": [
+    {
+      "organization_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "organization_name": "Testing INC",
+      "uei": "P3PBCKY723N6"
+    },
+    {
+      "organization_id": "b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e",
+      "organization_name": "Sample Health Center",
+      "uei": "E9358A5CI103"
+    }
+  ],
+  "funding_cycles": [
+    {
+      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
+      "funding_cycle_code": "HRSA-25-091",
+      "announcement_number": "HRSA-25-091",
+      "type_of_app_by_fo": 1,
+      "program_id": 1
+    },
+    {
+      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+      "funding_cycle_code": "HRSA-26-001",
+      "announcement_number": "HRSA-26-001",
+      "type_of_app_by_fo": 2,
+      "program_id": 2
+    }
+  ],
+  "grants": [
+    {
+      "grant_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
+      "grant_number": "H80CS12345",
+      "organization_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "program_id": 1,
+      "project_period_end_date": "2027-12-31T00:00:00",
+      "grant_status": "Active"
+    },
+    {
+      "grant_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "grant_number": "H80CS67890",
+      "organization_id": "b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e",
+      "program_id": 2,
+      "project_period_end_date": "2028-06-30T00:00:00",
+      "grant_status": "Active"
+    }
+  ],
+  "applications": [
+    {
+      "application_id": "a7b8c9d0-e1f2-4a5b-4c5d-6e7f8a9b0c1d",
+      "grants_gov_application_id": "GRANT123456",
+      "grants_gov_tracking_no": "TRACK-001",
+      "application_status_flag": "1"
+    }
+  ]
+}

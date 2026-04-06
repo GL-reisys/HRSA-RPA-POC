@@ -1,0 +1,181 @@
+{
+  "description": "XFA field name mapping for SF-424 form. Maps XFA XML field names to SF424FormData model properties.",
+  "field_prefix": "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_",
+  "mappings": {
+    "SubmissionType": {
+      "model_field": "submission_type",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_SubmissionType",
+        "SubmissionType",
+        "Submission_Type"
+      ],
+      "description": "Type of submission: 1=New, 2=Changed/Corrected",
+      "type": "string",
+      "required": true
+    },
+    "ApplicationType": {
+      "model_field": "application_type",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_ApplicationType",
+        "ApplicationType",
+        "Application_Type"
+      ],
+      "description": "Type of application: 1=New, 2=Continuation, 3=Revision",
+      "type": "string",
+      "required": true
+    },
+    "OrganizationName": {
+      "model_field": "organization_name",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_OrganizationName",
+        "OrganizationName",
+        "LegalName",
+        "Applicant_Name",
+        "APPLICANT_LEGAL_NAME"
+      ],
+      "description": "Legal name of applicant organization",
+      "type": "string",
+      "required": true
+    },
+    "EmployerTaxpayerIdentificationNumber": {
+      "model_field": "employer_taxpayer_identification_number",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_EmployerTaxpayerIdentificationNumber",
+        "EmployerTaxpayerIdentificationNumber",
+        "EIN",
+        "TaxID",
+        "EmployerID",
+        "EMPLOYER_ID"
+      ],
+      "description": "Employer Identification Number (EIN) format: XX-XXXXXXX",
+      "type": "string",
+      "required": true,
+      "validation": "^\\d{2}-\\d{7}$"
+    },
+    "SAMUEI": {
+      "model_field": "samuei",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_SAMUEI",
+        "SAMUEI",
+        "UEI",
+        "SAM_UEI",
+        "UniqueEntityIdentifier"
+      ],
+      "description": "Unique Entity Identifier (UEI) - 12 alphanumeric characters",
+      "type": "string",
+      "required": true,
+      "validation": "^[A-Z0-9]{12}$"
+    },
+    "ProjectTitle": {
+      "model_field": "project_title",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_ProjectTitle",
+        "ProjectTitle",
+        "Project_Title",
+        "PROJECT_TITLE"
+      ],
+      "description": "Descriptive title of the project",
+      "type": "string",
+      "required": true
+    },
+    "Email": {
+      "model_field": "email",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_Email",
+        "Email",
+        "EmailAddress",
+        "Contact_Email"
+      ],
+      "description": "Contact person email address",
+      "type": "email",
+      "required": true
+    },
+    "PhoneNumber": {
+      "model_field": "phone_number",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_PhoneNumber",
+        "PhoneNumber",
+        "Phone",
+        "Contact_Phone"
+      ],
+      "description": "Contact person phone number",
+      "type": "string",
+      "required": true
+    },
+    "FundingOpportunityNumber": {
+      "model_field": "funding_opportunity_number",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_FundingOpportunityNumber",
+        "FundingOpportunityNumber",
+        "FON",
+        "Funding_Opportunity_Number"
+      ],
+      "description": "Funding Opportunity Number from announcement",
+      "type": "string",
+      "required": true
+    },
+    "FederalEstimatedFunding": {
+      "model_field": "federal_estimated_funding",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_FederalEstimatedFunding",
+        "FederalEstimatedFunding",
+        "FederalFunds",
+        "FEDERAL_FUNDS"
+      ],
+      "description": "Federal funds requested",
+      "type": "decimal",
+      "required": true
+    },
+    "TotalEstimatedFunding": {
+      "model_field": "total_estimated_funding",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_TotalEstimatedFunding",
+        "TotalEstimatedFunding",
+        "TotalFunds",
+        "TOTAL_FUNDS"
+      ],
+      "description": "Total estimated funding (sum of all sources)",
+      "type": "decimal",
+      "required": true
+    },
+    "ProjectStartDate": {
+      "model_field": "project_start_date",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_ProjectStartDate",
+        "ProjectStartDate",
+        "Project_Start_Date",
+        "StartDate"
+      ],
+      "description": "Project start date",
+      "type": "date",
+      "required": true
+    },
+    "ProjectEndDate": {
+      "model_field": "project_end_date",
+      "xfa_variants": [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_ProjectEndDate",
+        "ProjectEndDate",
+        "Project_End_Date",
+        "EndDate"
+      ],
+      "description": "Project end date",
+      "type": "date",
+      "required": true
+    }
+  },
+  "usage_notes": {
+    "field_prefix_usage": "XFA fields typically have a long prefix path. The field_prefix constant should be prepended to field names when looking up values.",
+    "variant_matching": "When extracting fields, try each variant in order until a match is found in the XFA data.",
+    "case_sensitivity": "Field names may vary in case. Perform case-insensitive matching when possible.",
+    "missing_fields": "If a required field is not found in any variant, it should be flagged as a validation error.",
+    "type_conversion": "Apply appropriate type conversion based on the 'type' field (string, decimal, date, email)."
+  },
+  "validation_patterns": {
+    "ein": "^\\d{2}-\\d{7}$",
+    "uei": "^[A-Z0-9]{12}$",
+    "email": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    "phone": "^[\\d\\s\\(\\)\\-\\.\\+]+$",
+    "state_code": "^[A-Z]{2}$",
+    "zip_code": "^\\d{5}(-\\d{4})?$"
+  }
+}
