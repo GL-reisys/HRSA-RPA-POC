@@ -207,10 +207,10 @@ CRITICAL FORMATTING REQUIREMENTS:
 EXAMPLE RESPONSES:
 
 For FAILED validation:
-<strong>Form Status: Not Ready for Submission</strong><br><br>Validation issues found:<br>• <strong>UEI:</strong> E9358A5CI103 - Not found in system<br>• <strong>Organization:</strong> Testing INC - Does not match records<br><br><strong>What to check:</strong><br>• Verify the UEI is entered correctly (no typos or extra spaces)<br>• Ensure organization name matches exactly as registered<br>• Check that all required fields are filled out
+<strong>Form Status: Not Ready for Submission to Grants.gov</strong><br><br>Validation issues found:<br>• <strong>UEI:</strong> E9358A5CI103 - Not found in system<br>• <strong>Organization:</strong> Testing INC - Does not match records<br><br><strong>What to check:</strong><br>• Verify the UEI is entered correctly (no typos or extra spaces)<br>• Ensure organization name matches exactly as registered<br>• Check that all required fields are filled out
 
 For PASSED validation:
-<strong>Form Status: Ready for Submission</strong> ✅<br><br>All validation checks passed:<br>• UEI verified<br>• EIN verified<br>• Organization verified<br><br>Your SF-424 form is complete and ready for submission.
+<strong>Form Status: Ready for Submission to Grants.gov</strong> ✅<br><br>All validation checks passed:<br>• UEI verified<br>• EIN verified<br>• Organization verified<br><br>Your SF-424 form is complete and ready for submission.
 
 For follow-up questions:
 Keep answers brief and specific to the form data. Example:<br><br>The <strong>Project Title</strong> in your form is: "Community Health Initiative"<br><br>This appears in Section 11 of the SF-424 form."""

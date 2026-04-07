@@ -90,7 +90,13 @@ def analyze_pdf():
         
         form_data = mapper.map_to_sf424(xfa_data)
         
-        validation_errors = validator.validate_form_data(form_data)
+        validation_errors_obj = validator.validate_form_data(form_data)
+        
+        # Extract user messages for UI display
+        validation_errors = [error.user_message for error in validation_errors_obj]
+        
+        # Extract AI context messages for AI model
+        validation_errors_ai = [error.ai_context for error in validation_errors_obj]
         
         # Get funding opportunity to check type_of_app_by_fo for Grant Number display
         funding_opportunity = None
@@ -141,9 +147,9 @@ def analyze_pdf():
         
         consistent_section += "<br>"
         
-        # Get AI-generated troubleshooting guidance
+        # Get AI-generated troubleshooting guidance (use AI context messages)
         import asyncio
-        ai_guidance = asyncio.run(ai_service.get_troubleshooting_guidance(form_data, validation_errors))
+        ai_guidance = asyncio.run(ai_service.get_troubleshooting_guidance(form_data, validation_errors_ai))
         
         # Combine consistent section + AI guidance
         ai_response = consistent_section + ai_guidance
@@ -152,7 +158,8 @@ def analyze_pdf():
             'file_name': data.get('file_name', 'unknown.pdf'),
             'uploaded_at': datetime.utcnow().isoformat() + 'Z',
             'form_data': form_data,
-            'validation_errors': validation_errors,
+            'validation_errors': validation_errors,  # User messages for display
+            'validation_errors_ai': validation_errors_ai,  # AI context for model
             'chat_history': [
                 {'role': 'user', 'content': message, 'timestamp': datetime.utcnow().isoformat() + 'Z'},
                 {'role': 'assistant', 'content': ai_response, 'timestamp': datetime.utcnow().isoformat() + 'Z'}
@@ -197,7 +204,7 @@ def chat_message():
             chat_history=chat_history,
             form_context={
                 'form_data': session_data.get('form_data'),
-                'validation_errors': session_data.get('validation_errors')
+                'validation_errors': session_data.get('validation_errors_ai', session_data.get('validation_errors'))
             }
         ))
         

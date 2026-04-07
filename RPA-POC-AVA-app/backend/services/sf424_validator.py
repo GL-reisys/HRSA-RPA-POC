@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 import pikepdf
 import re
 from services.database_service import DatabaseService
+from models.validation_error import ValidationError, ValidationErrorFactory
 
 class SF424Validator:
     """
@@ -47,53 +48,53 @@ class SF424Validator:
             print(f"PDF validation error: {str(e)}")
             return False
     
-    def validate_form_data(self, form_data: Dict[str, Any]) -> List[str]:
+    def validate_form_data(self, form_data: Dict[str, Any]) -> List[ValidationError]:
         """
         Validate SF-424 form data against business rules.
-        Returns list of validation error messages.
+        Returns list of ValidationError objects with dual message system.
         """
         errors = []
         
         # Required fields
         if not form_data.get('organization_name'):
-            errors.append("Missing required field: Organization Name")
+            errors.append(ValidationErrorFactory.required_field("Organization Name", "ORG_NAME"))
         
         if not form_data.get('samuei'):
-            errors.append("Missing required field: UEI (Unique Entity Identifier)")
+            errors.append(ValidationErrorFactory.required_field("UEI (Unique Entity Identifier)", "UEI"))
         
         if not form_data.get('employer_taxpayer_identification_number'):
-            errors.append("Missing required field: EIN (Employer Identification Number)")
+            errors.append(ValidationErrorFactory.required_field("EIN (Employer Identification Number)", "EIN"))
         
         if not form_data.get('project_title'):
-            errors.append("Missing required field: Project Title")
+            errors.append(ValidationErrorFactory.required_field("Project Title", "PROJECT_TITLE"))
         
         if not form_data.get('email'):
-            errors.append("Missing required field: Contact Email")
+            errors.append(ValidationErrorFactory.required_field("Contact Email", "CONTACT_EMAIL"))
         
         if not form_data.get('phone_number'):
-            errors.append("Missing required field: Contact Phone Number")
+            errors.append(ValidationErrorFactory.required_field("Contact Phone Number", "CONTACT_PHONE"))
         
         if not form_data.get('funding_opportunity_number'):
-            errors.append("Missing required field: Funding Opportunity Number")
+            errors.append(ValidationErrorFactory.required_field("Funding Opportunity Number", "FON"))
         
         # Validate submission type
         if not form_data.get('submission_type'):
-            errors.append("Missing required field: Submission Type")
+            errors.append(ValidationErrorFactory.required_field("Submission Type", "SUBMISSION_TYPE"))
         
         # Validate UEI format (12 characters, alphanumeric)
         uei = form_data.get('samuei')
         if uei and (len(uei) != 12 or not uei.isalnum()):
-            errors.append("Invalid UEI format: Must be 12 alphanumeric characters")
+            errors.append(ValidationErrorFactory.invalid_format("UEI", "Must be 12 alphanumeric characters", "UEI"))
         
         # Validate EIN format (XX-XXXXXXX)
         ein = form_data.get('employer_taxpayer_identification_number')
         if ein and not self._validate_ein_format(ein):
-            errors.append("Invalid EIN format: Must be XX-XXXXXXX")
+            errors.append(ValidationErrorFactory.invalid_format("EIN", "Must be XX-XXXXXXX (e.g., 12-3456789)", "EIN"))
         
         # Validate email format
         email = form_data.get('email')
         if email and not self._validate_email_format(email):
-            errors.append("Invalid email format")
+            errors.append(ValidationErrorFactory.invalid_email_format())
         
         # Validate budget totals
         federal = form_data.get('federal_estimated_funding', 0) or 0
@@ -107,7 +108,7 @@ class SF424Validator:
         calculated_total = federal + applicant + state + local + other + program_income
         
         if total > 0 and abs(calculated_total - total) > 0.01:
-            errors.append(f"Budget mismatch: Total ({total}) does not equal sum of sources ({calculated_total})")
+            errors.append(ValidationErrorFactory.budget_mismatch(total, calculated_total))
         
         # Validate project dates
         start_date = form_data.get('project_start_date')
@@ -115,17 +116,17 @@ class SF424Validator:
         
         if start_date and end_date:
             if str(end_date) < str(start_date):
-                errors.append("Project end date must be after start date")
+                errors.append(ValidationErrorFactory.invalid_project_dates())
         
         # Validate authorized representative fields
         if not form_data.get('authorized_representative_first_name'):
-            errors.append("Missing required field: Authorized Representative First Name")
+            errors.append(ValidationErrorFactory.required_field("Authorized Representative First Name", "AUTH_REP_FIRST_NAME"))
         
         if not form_data.get('authorized_representative_last_name'):
-            errors.append("Missing required field: Authorized Representative Last Name")
+            errors.append(ValidationErrorFactory.required_field("Authorized Representative Last Name", "AUTH_REP_LAST_NAME"))
         
         if not form_data.get('authorized_representative_email'):
-            errors.append("Missing required field: Authorized Representative Email")
+            errors.append(ValidationErrorFactory.required_field("Authorized Representative Email", "AUTH_REP_EMAIL"))
         
         # Database validations
         errors.extend(self._validate_database_rules(form_data))
@@ -205,7 +206,7 @@ class SF424Validator:
         normalized = mapping.get(sub_type_str.lower())
         return normalized if normalized else sub_type_str
     
-    def _validate_database_rules(self, form_data: Dict[str, Any]) -> List[str]:
+    def _validate_database_rules(self, form_data: Dict[str, Any]) -> List[ValidationError]:
         """
         Validate form data against database records using typed models.
         
@@ -243,18 +244,14 @@ class SF424Validator:
             organization = self.db_service.get_organization_by_uei(uei)
             
             if not organization:
-                errors.append(
-                    f"UEI '{uei}' not found in system. "
-                    "Please verify your organization is registered in SAM.gov."
-                )
+                errors.append(ValidationErrorFactory.uei_not_found(uei))
             else:
                 # Validate organization name matches
                 if org_name:
                     if organization.organization_name.strip().lower() != org_name.strip().lower():
-                        errors.append(
-                            f"Organization name '{org_name}' does not match the registered name "
-                            f"'{organization.organization_name}' for UEI '{uei}'."
-                        )
+                        errors.append(ValidationErrorFactory.org_name_mismatch(
+                            org_name, organization.organization_name, uei
+                        ))
         
         # ========================================
         # Funding Opportunity Validation
@@ -264,10 +261,7 @@ class SF424Validator:
             funding_opportunity = self.db_service.get_funding_cycle_by_code(fon)
             
             if not funding_opportunity:
-                errors.append(
-                    f"Funding Opportunity Number '{fon}' not found. "
-                    "Please verify the FON matches the announcement exactly."
-                )
+                errors.append(ValidationErrorFactory.fon_not_found(fon))
             else:
                 # Validate application type matches funding opportunity requirements
                 application_type = form_data.get('application_type')
@@ -280,17 +274,11 @@ class SF424Validator:
                         
                         # TypeOfAppByFO = 2 (Continuation only), but application is New (1)
                         if type_of_app_by_fo == 2 and app_type_code == 1:
-                            errors.append(
-                                f"Application type mismatch: Funding Opportunity '{fon}' only accepts "
-                                "Continuation applications, but you submitted a New application."
-                            )
+                            errors.append(ValidationErrorFactory.type_mismatch_continuation_required(fon))
                         # TypeOfAppByFO = 1 (New only), but application is NOT New
                         elif type_of_app_by_fo == 1 and app_type_code != 1:
                             app_type_name = "Continuation" if app_type_code == 2 else "Revision" if app_type_code == 3 else "Unknown"
-                            errors.append(
-                                f"Application type mismatch: Funding Opportunity '{fon}' only accepts "
-                                f"New applications, but you submitted a {app_type_name} application."
-                            )
+                            errors.append(ValidationErrorFactory.type_mismatch_new_required(fon, app_type_name))
                     except (ValueError, TypeError):
                         # Invalid application type format - will be caught by other validation
                         pass
@@ -301,9 +289,7 @@ class SF424Validator:
                 # Validate Grant Number should not be populated for "New only" funding opportunities
                 federal_award_identifier = form_data.get('federal_award_identifier')
                 if federal_award_identifier and funding_opportunity.type_of_app_by_fo == 1:
-                    errors.append(
-                        f"Remove Federal Award Identifier: Funding Opportunity '{fon}' only accepts New applications"
-                    )
+                    errors.append(ValidationErrorFactory.grant_number_not_allowed(fon))
                 
                 # ========================================
                 # Duplicate Application Detection
@@ -318,12 +304,8 @@ class SF424Validator:
                         )
                         
                         if existing_apps:
-                            # Build concise error message for AI agent context
-                            app_ids = [app['application_id'] for app in existing_apps]
-                            errors.append(
-                                f"Duplicate application: Organization already has {len(existing_apps)} "
-                                f"active application(s) for FON '{fon}' (IDs: {', '.join(app_ids[:3])})"
-                            )
+                            # Use ValidationErrorFactory (no longer exposes application IDs)
+                            errors.append(ValidationErrorFactory.duplicate_application(fon))
                     except Exception as e:
                         # Log error but don't fail validation - duplicate check is supplementary
                         print(f"Warning: Duplicate detection check failed: {str(e)}")
@@ -340,14 +322,14 @@ class SF424Validator:
         if app_type_normalized == "2":  # Continuation application
             # Require grant number for continuation applications
             if not federal_award_identifier:
-                errors.append("Grant number required for Continuation applications")
+                errors.append(ValidationErrorFactory.grant_number_required())
             else:
                 try:
                     # Get grant by number
                     grant = self.db_service.get_grant_by_number(federal_award_identifier)
                     
                     if not grant:
-                        errors.append(f"Grant '{federal_award_identifier}' not found")
+                        errors.append(ValidationErrorFactory.grant_not_found(federal_award_identifier))
                     else:
                         # Validate grant ownership (only if organization was validated)
                         if uei and organization:
@@ -363,7 +345,7 @@ class SF424Validator:
                             )
                             
                             if not grant_belongs_to_org:
-                                errors.append(f"Grant '{federal_award_identifier}' does not belong to your organization")
+                                errors.append(ValidationErrorFactory.grant_ownership_mismatch(federal_award_identifier, uei))
                             else:
                                 # Check if grant is expired (via awards table)
                                 grant_is_active = False
@@ -373,7 +355,7 @@ class SF424Validator:
                                         break
                                 
                                 if not grant_is_active:
-                                    errors.append(f"Grant '{federal_award_identifier}' has expired or is not active")
+                                    errors.append(ValidationErrorFactory.grant_expired(federal_award_identifier))
                         
                         # Validate program match (only if funding opportunity was validated)
                         if funding_opportunity:
@@ -383,7 +365,7 @@ class SF424Validator:
                             )
                             
                             if not program_match:
-                                errors.append(f"Grant program does not match funding opportunity program")
+                                errors.append(ValidationErrorFactory.grant_program_mismatch(federal_award_identifier, fon))
                 
                 except Exception as e:
                     # Log error but don't fail validation
