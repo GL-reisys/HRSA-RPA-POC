@@ -88,25 +88,26 @@ frontend/
 backend/
 ├── app.py                           # Main Flask application
 ├── controllers/
-│   ├── document_controller.py       # Document CRUD operations
+│   ├── document_controller.py       # Document CRUD operations (legacy)
 │   └── pdf_validation_controller.py # PDF validation & AI endpoints
 ├── services/
-│   ├── xfa_pdf_extractor.py        # XFA form field extraction
-│   ├── form_mapper.py               # Map XFA to SF-424 structure
-│   ├── sf424_validator.py           # SF-424 validation rules
+│   ├── xfa_pdf_extractor.py        # XFA form field extraction from PDFs
+│   ├── form_mapper.py               # Map XFA fields to SF-424 structure
+│   ├── sf424_validator.py           # SF-424 validation rules & business logic
+│   ├── database_service.py          # Database operations (UEI, Funding Opp, etc.)
 │   ├── ai_service.py                # Azure OpenAI integration
-│   ├── session_manager.py           # Session management
-│   └── pdf_validator.py             # PDF validation service
+│   ├── session_manager.py           # Session management with chat history
+│   └── pdf_validator.py             # PDF structure validation
 ├── models/
-│   ├── application.py               # Application data model
-│   └── document.py                  # Document data model
-├── utils/
-│   └── pdf_reader.py                # PDF reading utilities
+│   ├── validation_error.py          # ValidationError and ValidationErrorFactory
+│   ├── funding_cycle.py             # FundingCycle model
+│   └── organization.py              # Organization model
 ├── config/
 │   └── database.py                  # JSON database handler
 └── data/
-    ├── sessions.json                # Session storage
-    ├── documents.json               # Document metadata
+    ├── sessions.json                # Session storage with chat history
+    ├── documents.json               # Document metadata (legacy)
+    ├── mock_database.json           # Mock database (UEI, Funding Opp, Orgs)
     └── uploads/                     # PDF file storage
 ```
 
@@ -146,27 +147,50 @@ backend/
    ↓
 3. POST /api/pdf/upload
    ↓
-4. Backend saves file with UUID
+4. Backend saves file with UUID (file_id)
    ↓
-5. Validate PDF structure
+5. SF424Validator.validate_pdf_structure()
+   - Check for /AcroForm
+   - Verify XFA or Fields exist
    ↓
 6. Return file_id to frontend
    ↓
 7. POST /api/pdf/analyze with file_id
    ↓
-8. Extract XFA form fields
+8. XFAPdfExtractor.extract_form_fields()
+   - Parse XFA XML data
+   - Extract all form fields
+   - Return raw_fields and typed fields
    ↓
-9. Map to SF-424 structure
+9. FormMapper.map_to_sf424()
+   - Map XFA field names to SF-424 structure
+   - Handle multiple field name prefixes
+   - Type conversion (string, date, decimal)
    ↓
-10. Validate form data
+10. SF424Validator.validate_form_data()
+   - Validate UEI against mock database
+   - Validate Funding Opportunity Number
+   - Validate Application Type constraints
+   - Validate Grant Number (if continuation/revision)
+   - Return ValidationError objects
    ↓
-11. Send to Azure OpenAI for analysis
+11. Build validation response
+   - Extract user_message for UI display
+   - Extract ai_context for AI model
    ↓
-12. Create session with results
+12. AIService.get_troubleshooting_guidance()
+   - Send form data + validation errors to Azure OpenAI
+   - Generate actionable troubleshooting steps
+   - Return HTML-formatted guidance
    ↓
-13. Return analysis to frontend
+13. SessionManager.save_session()
+   - Store form_data, validation_errors, chat_history
+   - Set expiration (24 hours)
    ↓
-14. Display results and enable chat
+14. Return analysis to frontend
+   - form_data, validation_errors, validation_status, ai_response
+   ↓
+15. Display results and enable chat
 ```
 
 ### Chat Interaction Flow
@@ -174,17 +198,27 @@ backend/
 ```
 1. User sends message
    ↓
-2. POST /api/chat/message
+2. POST /api/chat/message with file_id, message, chat_history
    ↓
-3. Retrieve session data (form context)
+3. SessionManager.get_session(file_id)
+   - Retrieve form_data and validation_errors
    ↓
-4. Build prompt with context + history
+4. AIService.chat_completion()
+   - Build system prompt (AVA role definition)
+   - Add chat history to messages
+   - Extract relevant form fields based on user question
+   - Append form context to user message
    ↓
 5. Call Azure OpenAI API
+   - Model: GPT-4
+   - Max tokens: 2000
+   - Return HTML-formatted response
    ↓
-6. Update session chat history
+6. SessionManager.update_chat_history()
+   - Append user message and AI response
+   - Update session timestamp
    ↓
-7. Return AI response
+7. Return AI response to frontend
    ↓
 8. Display in chat interface
 ```
@@ -217,13 +251,13 @@ backend/
 ### RESTful Endpoints
 
 **PDF Validation Endpoints:**
-- `POST /api/pdf/upload` - Upload PDF file
-- `POST /api/pdf/analyze` - Analyze and validate PDF
-- `POST /api/chat/message` - Chat with AI about form
-- `DELETE /api/session/clear` - Clear session data
-- `GET /api/health` - Health check
+- `POST /api/pdf/upload` - Upload PDF file and validate structure
+- `POST /api/pdf/analyze` - Extract, validate, and analyze SF-424 form
+- `POST /api/chat/message` - Chat with AI about form with context
+- `DELETE /api/session/clear` - Clear session data and delete files
+- `GET /api/health` - Health check with active session count
 
-**Document Management Endpoints:**
+**Document Management Endpoints (Legacy):**
 - `GET /api/documents` - List all documents
 - `GET /api/documents/<id>` - Get document details
 - `POST /api/documents/upload` - Upload document
@@ -258,6 +292,7 @@ Content-Type: application/json
 
 {
   "file_id": "uuid-string",
+  "file_name": "application.pdf",
   "message": "Please analyze this form."
 }
 ```
@@ -266,11 +301,25 @@ Content-Type: application/json
 ```json
 {
   "file_id": "uuid-string",
-  "form_data": { /* extracted fields */ },
-  "validation_errors": [ /* errors */ ],
-  "validation_status": "PASSED|FAILED",
-  "ai_response": "Analysis text...",
-  "metadata": { /* PDF metadata */ }
+  "form_data": {
+    "samuei": "E9358A5CI103",
+    "organization_name": "Testing INC",
+    "funding_opportunity_number": "HRSA-26-001",
+    "application_type": "1",
+    "federal_award_identifier": "1 H80CS12345-01-00",
+    /* ... other SF-424 fields ... */
+  },
+  "validation_errors": [
+    "UEI E9358A5CI103 not found in system",
+    "Organization Testing INC does not match records"
+  ],
+  "validation_status": "PASSED" | "FAILED",
+  "ai_response": "<strong>Form Status: Not Ready...</strong><br><br>...",
+  "metadata": {
+    "page_count": 2,
+    "field_count": 45,
+    "form_type": "SF-424"
+  }
 }
 ```
 

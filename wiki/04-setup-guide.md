@@ -52,13 +52,12 @@ Create `.env` file with the following content:
 FLASK_ENV=development
 FLASK_DEBUG=1
 
-# Azure OpenAI Configuration
+# Azure OpenAI Configuration (Required for AI features)
 AZURE_OPENAI_API_KEY=your-api-key-here
 AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=your-deployment-name
-AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_OPENAI_DEPLOYMENT=gpt-4
 
-# Application Configuration
+# Application Configuration (Optional - defaults provided)
 MAX_FILE_SIZE=10485760
 SESSION_TIMEOUT_HOURS=24
 ```
@@ -145,13 +144,15 @@ Create `data/sessions.json`:
 {}
 ```
 
-Create `data/documents.json`:
+Create `data/documents.json` (optional - legacy):
 
 ```json
 {
   "documents": []
 }
 ```
+
+Note: `data/mock_database.json` should already exist in the repository with sample UEI, Funding Opportunity, and Organization data.
 
 #### 7. Run the Backend Server
 
@@ -204,13 +205,14 @@ The frontend will start on http://localhost:3000
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `FLASK_ENV` | Flask environment | development | No |
-| `FLASK_DEBUG` | Enable debug mode | 1 | No |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - | Yes |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | - | Yes |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name | - | Yes |
-| `AZURE_OPENAI_API_VERSION` | API version | 2024-02-15-preview | No |
+| `FLASK_DEBUG` | Enable debug mode | 0 | No |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - | Yes* |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | - | Yes* |
+| `AZURE_OPENAI_DEPLOYMENT` | Model deployment name | gpt-4 | No |
 | `MAX_FILE_SIZE` | Max upload size in bytes | 10485760 (10MB) | No |
 | `SESSION_TIMEOUT_HOURS` | Session expiration | 24 | No |
+
+*Required for AI-powered analysis and chat features. The application will run without these but with limited functionality.
 
 ### Frontend Configuration
 
@@ -396,19 +398,27 @@ Expected response:
 }
 ```
 
-### 2. Upload Test PDF
+### 2. Upload Test SF-424 PDF
 
 1. Navigate to http://localhost:3000
 2. Click "Go to Dashboard"
-3. Drag and drop a PDF file
-4. Verify upload succeeds
+3. Drag and drop an SF-424 PDF file (use test files from `TestData/` directory)
+4. Verify upload succeeds and returns file_id
 
-### 3. Test Chat
+### 3. Test Form Analysis
 
 1. After uploading PDF, click "Analyze"
 2. Wait for analysis to complete
-3. Type a message in chat: "What is this form about?"
-4. Verify AI responds
+3. Verify validation results are displayed:
+   - Form status (Ready/Not Ready)
+   - Validation errors (if any)
+   - AI-generated troubleshooting guidance
+
+### 4. Test Chat
+
+1. Type a message in chat: "What is the UEI in this form?"
+2. Verify AI responds with form-specific information
+3. Try follow-up questions about form fields
 
 ## Next Steps
 

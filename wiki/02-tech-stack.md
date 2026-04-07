@@ -34,13 +34,12 @@ The HRSA RPA POC uses a modern, containerized full-stack architecture with AI ca
 - **Werkzeug 3.0.1**: WSGI utility library
 
 ### PDF Processing
-- **pdfplumber 0.11.4**: PDF text extraction and analysis
-- **pikepdf 9.4.2**: PDF manipulation and repair
-- **lxml 5.3.0**: XML/HTML processing for PDF content
-- **Pillow 10.4.0**: Image processing for PDF graphics
+- **pikepdf 9.4.2**: XFA form extraction and PDF manipulation
+- **lxml 5.3.0**: XML parsing for XFA data structures
+- **Pillow 10.4.0**: Image processing support
 
 ### AI Integration
-- **OpenAI 1.58.1**: Azure OpenAI SDK for AI-powered validation
+- **OpenAI 1.58.1**: Azure OpenAI SDK for AI-powered validation and chat
 - **Pydantic 2.10.6**: Data validation and settings management
 
 ### Utilities
@@ -84,9 +83,13 @@ The HRSA RPA POC uses a modern, containerized full-stack architecture with AI ca
 
 ### Azure OpenAI
 - **Service**: Azure OpenAI Service
-- **Model**: GPT-4 or GPT-3.5-turbo
-- **Purpose**: Form validation and chat assistance
-- **Configuration**: Via environment variables
+- **Model**: GPT-4 (configurable via AZURE_OPENAI_DEPLOYMENT)
+- **API Version**: 2024-08-01-preview
+- **Purpose**: 
+  - SF-424 form analysis and troubleshooting guidance
+  - Interactive chat with form context
+  - Validation error explanations
+- **Configuration**: Via environment variables (AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT)
 
 ## Data Storage
 
@@ -94,14 +97,16 @@ The HRSA RPA POC uses a modern, containerized full-stack architecture with AI ca
 - **Format**: JSON files
 - **Location**: `backend/data/` directory
 - **Files**:
-  - `sessions.json`: Session data
-  - `documents.json`: Document metadata
+  - `sessions.json`: Session data with chat history
+  - `documents.json`: Document metadata (legacy)
   - `uploads/`: PDF file storage
+  - `mock_database.json`: Mock database for UEI, Funding Opportunities, Organizations
 
 ### Future (Production)
 - **Database**: PostgreSQL 14+
 - **ORM**: SQLAlchemy (planned)
 - **Migration**: Alembic (planned)
+- **Tables**: Organizations, FundingCycles, ValidationErrors
 
 ## Networking
 

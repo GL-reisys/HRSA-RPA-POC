@@ -33,40 +33,49 @@ The HRSA RPA POC project is an AI-powered Application Validation Assistant (AVA)
 **Current Phase**: Proof of Concept (POC)
 
 The application is in active development with core features implemented:
-- ✅ PDF upload and processing
-- ✅ Azure OpenAI integration for validation
-- ✅ Interactive chat interface
-- ✅ Session management
-- ✅ Document storage and retrieval
-- 🔄 Advanced validation rules (in progress)
+- ✅ XFA PDF field extraction
+- ✅ SF-424 form field mapping
+- ✅ Database-driven validation (UEI, Funding Opportunity, Grant Number)
+- ✅ Azure OpenAI integration for AI-powered analysis
+- ✅ Interactive chat interface with form context
+- ✅ Session management with automatic cleanup
+- ✅ Document upload and storage
+- ✅ Validation error messaging (user-friendly + AI context)
+- 🔄 Frontend UI enhancements (in progress)
 - 🔄 Comprehensive testing suite (in progress)
 
 ### Key Features
 
-1. **PDF Upload & Analysis**
-   - Drag-and-drop file upload
-   - Automatic text extraction from SF-424 forms
-   - Metadata extraction and storage
+1. **XFA PDF Processing**
+   - Drag-and-drop file upload with validation
+   - XFA form field extraction from SF-424 PDFs
+   - Automatic field mapping to SF-424 data structure
+   - PDF structure validation (XFA/AcroForm detection)
 
-2. **AI-Powered Validation**
-   - Field-level validation using Azure OpenAI
-   - Context-aware error detection
-   - Intelligent suggestions for corrections
+2. **Database-Driven Validation**
+   - UEI (Unique Entity Identifier) verification against mock database
+   - Funding Opportunity Number validation
+   - Application Type validation (New/Continuation/Revision)
+   - Grant Number validation for continuation/revision applications
+   - Business rule enforcement based on funding opportunity constraints
 
-3. **Interactive Chat**
-   - Real-time Q&A about uploaded documents
-   - Contextual assistance based on form content
+3. **AI-Powered Analysis**
+   - Azure OpenAI integration for intelligent form analysis
+   - Context-aware troubleshooting guidance
+   - Validation error explanations with actionable steps
+   - HTML-formatted responses for rich UI display
+
+4. **Interactive Chat Interface**
+   - Real-time Q&A about uploaded SF-424 forms
+   - Contextual assistance based on form data and validation results
    - Session-based conversation history
-
-4. **Document Management**
-   - List all uploaded documents
-   - View document details and validation results
-   - Delete documents when no longer needed
+   - Form field extraction for relevant context
 
 5. **Session Management**
-   - Automatic session creation and tracking
-   - Session expiration and cleanup
-   - Multi-user support
+   - UUID-based session tracking per uploaded file
+   - Automatic session expiration (24 hours)
+   - Background cleanup scheduler (hourly)
+   - Chat history persistence within sessions
 
 ### Technology Approach
 
