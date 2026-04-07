@@ -13,10 +13,6 @@ class AIService:
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         
-        # Debug logging
-        print(f"DEBUG - API Key loaded: {api_key[:10]}...{api_key[-4:] if api_key else 'None'}")
-        print(f"DEBUG - Endpoint loaded: {endpoint}")
-        
         if not api_key or not endpoint or endpoint == "https://your-endpoint.openai.azure.com/":
             print("WARNING: Azure OpenAI credentials not configured. AI features will be disabled.")
             print("Please update AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env file")

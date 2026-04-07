@@ -1,8 +1,29 @@
 from dotenv import load_dotenv
 import os
+import sys
 
 # Load environment variables FIRST before importing any services
 load_dotenv()
+
+def validate_environment():
+    """Validate required environment variables are set"""
+    required_vars = {
+        'FLASK_ENV': 'development',
+        'FLASK_DEBUG': '0'
+    }
+    
+    missing_vars = []
+    for var, default in required_vars.items():
+        if not os.getenv(var):
+            os.environ[var] = default
+            print(f"INFO: {var} not set, using default: {default}")
+    
+    # Optional but recommended variables
+    if not os.getenv('AZURE_OPENAI_API_KEY') or not os.getenv('AZURE_OPENAI_ENDPOINT'):
+        print("WARNING: Azure OpenAI credentials not configured. AI features will be limited.")
+        print("Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env file for full functionality.")
+
+validate_environment()
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -77,4 +98,5 @@ if __name__ == '__main__':
     os.makedirs('data/uploads', exist_ok=True)
     os.makedirs('data', exist_ok=True)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
