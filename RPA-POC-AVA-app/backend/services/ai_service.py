@@ -285,8 +285,24 @@ Example format:
             'email': lambda: f"Email: {form_data.get('email') or 'Not provided'}",
             'phone': lambda: f"Phone: {form_data.get('phone_number') or 'Not provided'}",
             'address': lambda: f"Address: {form_data.get('applicant_street1') or ''} {form_data.get('applicant_city') or ''}, {form_data.get('applicant_state') or ''} {form_data.get('applicant_zip_postal_code') or ''}",
-            'funding': lambda: f"Federal Funding: ${form_data.get('federal_estimated_funding') or 0:,.2f}, Total: ${form_data.get('total_estimated_funding') or 0:,.2f}",
-            'budget': lambda: f"Total Budget: ${form_data.get('total_estimated_funding') or 0:,.2f}",
+            'funding': lambda: (
+                f"Federal: ${form_data.get('federal_estimated_funding') or 0:,.2f}, "
+                f"Applicant: ${form_data.get('applicant_estimated_funding') or 0:,.2f}, "
+                f"State: ${form_data.get('state_estimated_funding') or 0:,.2f}, "
+                f"Local: ${form_data.get('local_estimated_funding') or 0:,.2f}, "
+                f"Other: ${form_data.get('other_estimated_funding') or 0:,.2f}, "
+                f"Program Income: ${form_data.get('program_income_estimated_funding') or 0:,.2f}, "
+                f"Total: ${form_data.get('total_estimated_funding') or 0:,.2f}"
+            ),
+            'budget': lambda: (
+                f"Budget - Federal: ${form_data.get('federal_estimated_funding') or 0:,.2f}, "
+                f"Applicant: ${form_data.get('applicant_estimated_funding') or 0:,.2f}, "
+                f"State: ${form_data.get('state_estimated_funding') or 0:,.2f}, "
+                f"Local: ${form_data.get('local_estimated_funding') or 0:,.2f}, "
+                f"Other: ${form_data.get('other_estimated_funding') or 0:,.2f}, "
+                f"Program Income: ${form_data.get('program_income_estimated_funding') or 0:,.2f}, "
+                f"Total: ${form_data.get('total_estimated_funding') or 0:,.2f}"
+            ),
             'start date': lambda: f"Project Start Date: {form_data.get('project_start_date') or 'Not provided'}",
             'end date': lambda: f"Project End Date: {form_data.get('project_end_date') or 'Not provided'}",
             'contact': lambda: f"Contact: {form_data.get('contact_person_first_name') or ''} {form_data.get('contact_person_last_name') or ''}, {form_data.get('email') or ''}",

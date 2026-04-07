@@ -7,7 +7,12 @@ class FormMapper:
     Based on C# SF424FormMapper.cs
     """
     
-    SF424_FIELD_PREFIX = "form1_Page1_"
+    # Multiple possible prefixes for different PDF versions
+    SF424_FIELD_PREFIXES = [
+        "datasets_data_GrantApplicationWrapper_GrantApplication_Forms_SF424_4_0_",
+        "form1_Page1_",
+        ""  # No prefix fallback
+    ]
     
     def map_to_sf424(self, xfa_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -111,22 +116,21 @@ class FormMapper:
     
     def _get_string_value(self, fields: Dict, raw_fields: Dict, field_name: str) -> Optional[str]:
         """Get string value from fields with multiple possible field name variants"""
-        # Try with prefix
-        full_field_name = self.SF424_FIELD_PREFIX + field_name
-        value = fields.get(full_field_name) or raw_fields.get(full_field_name)
+        # Try with all known prefixes
+        for prefix in self.SF424_FIELD_PREFIXES:
+            full_field_name = prefix + field_name
+            value = fields.get(full_field_name) or raw_fields.get(full_field_name)
+            if value is not None:
+                return str(value)
         
-        # Try without prefix
-        if value is None:
-            value = fields.get(field_name) or raw_fields.get(field_name)
+        # Try fuzzy match as fallback
+        for key in fields.keys():
+            if field_name.lower() in key.lower():
+                value = fields.get(key) or raw_fields.get(key)
+                if value is not None:
+                    return str(value)
         
-        # Try common variants
-        if value is None:
-            for key in fields.keys():
-                if field_name.lower() in key.lower():
-                    value = fields.get(key) or raw_fields.get(key)
-                    break
-        
-        return str(value) if value is not None else None
+        return None
     
     def _get_date_value(self, fields: Dict, raw_fields: Dict, field_name: str) -> Optional[str]:
         """Get date value as ISO string"""
@@ -144,11 +148,12 @@ class FormMapper:
     
     def _get_decimal_value(self, fields: Dict, raw_fields: Dict, field_name: str) -> Optional[float]:
         """Get decimal/numeric value"""
-        full_field_name = self.SF424_FIELD_PREFIX + field_name
-        value = fields.get(full_field_name) or raw_fields.get(full_field_name)
-        
-        if value is None:
-            value = fields.get(field_name) or raw_fields.get(field_name)
+        # Try with all known prefixes
+        for prefix in self.SF424_FIELD_PREFIXES:
+            full_field_name = prefix + field_name
+            value = fields.get(full_field_name) or raw_fields.get(full_field_name)
+            if value is not None:
+                break
         
         if value is None:
             return None
