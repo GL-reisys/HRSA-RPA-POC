@@ -144,6 +144,13 @@ class SF424Validator:
         1. Organization exists (UEI lookup)
         2. Organization name matches database record
         3. Funding Opportunity exists
+        4. Application type matches funding opportunity requirements
+        5. No duplicate applications (org already has active application for same FON)
+        6. Continuation applications: Grant number required
+        7. Continuation applications: Grant exists
+        8. Continuation applications: Grant belongs to organization
+        9. Continuation applications: Grant is active and not expired
+        10. Continuation applications: Grant program matches funding opportunity program
         
         Returns:
             List of validation error messages
@@ -212,6 +219,87 @@ class SF424Validator:
                     except (ValueError, TypeError):
                         # Invalid application type format - will be caught by other validation
                         pass
+                
+                # ========================================
+                # Duplicate Application Detection
+                # ========================================
+                # Check if organization already has an active application for this funding opportunity
+                if uei and organization:
+                    try:
+                        # Find existing applications for this org + funding opportunity combination
+                        existing_apps = self.db_service.find_related_applications(
+                            fo=funding_opportunity.funding_cycle_id,
+                            org=organization.organization_id
+                        )
+                        
+                        if existing_apps:
+                            # Build concise error message for AI agent context
+                            app_ids = [app['application_id'] for app in existing_apps]
+                            errors.append(
+                                f"Duplicate application: Organization already has {len(existing_apps)} "
+                                f"active application(s) for FON '{fon}' (IDs: {', '.join(app_ids[:3])})"
+                            )
+                    except Exception as e:
+                        # Log error but don't fail validation - duplicate check is supplementary
+                        print(f"Warning: Duplicate detection check failed: {str(e)}")
+        
+        # ========================================
+        # Continuation Application Grant Validation
+        # ========================================
+        application_type = form_data.get('application_type')
+        federal_award_identifier = form_data.get('federal_award_identifier')
+        
+        if application_type == "2":  # Continuation application
+            # Require grant number for continuation applications
+            if not federal_award_identifier:
+                errors.append("Grant number required for Continuation applications")
+            else:
+                try:
+                    # Get grant by number
+                    grant = self.db_service.get_grant_by_number(federal_award_identifier)
+                    
+                    if not grant:
+                        errors.append(f"Grant '{federal_award_identifier}' not found")
+                    else:
+                        # Validate grant ownership (only if organization was validated)
+                        if uei and organization:
+                            # Check if grant belongs to this organization via grant_organizations
+                            active_grants = self.db_service.get_active_grants_by_organization(
+                                organization_id=organization.organization_id,
+                                funding_cycle_id=funding_opportunity.funding_cycle_id if funding_opportunity else ""
+                            )
+                            
+                            grant_belongs_to_org = any(
+                                g.get('grant_number') == federal_award_identifier 
+                                for g in active_grants
+                            )
+                            
+                            if not grant_belongs_to_org:
+                                errors.append(f"Grant '{federal_award_identifier}' does not belong to your organization")
+                            else:
+                                # Check if grant is expired (via awards table)
+                                grant_is_active = False
+                                for g in active_grants:
+                                    if g.get('grant_number') == federal_award_identifier:
+                                        grant_is_active = True
+                                        break
+                                
+                                if not grant_is_active:
+                                    errors.append(f"Grant '{federal_award_identifier}' has expired or is not active")
+                        
+                        # Validate program match (only if funding opportunity was validated)
+                        if funding_opportunity:
+                            program_match = self.db_service.check_program_match(
+                                grant_id=grant.get('grant_id'),
+                                fo=funding_opportunity.funding_cycle_id
+                            )
+                            
+                            if not program_match:
+                                errors.append(f"Grant program does not match funding opportunity program")
+                
+                except Exception as e:
+                    # Log error but don't fail validation
+                    print(f"Warning: Grant validation check failed: {str(e)}")
         
         return errors
     

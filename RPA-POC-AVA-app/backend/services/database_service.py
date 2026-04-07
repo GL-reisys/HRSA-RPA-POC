@@ -273,6 +273,7 @@ class DatabaseService:
     def find_related_applications(self, fo: str, org: str) -> List[Dict[str, Any]]:
         """
         Find related applications for funding opportunity and organization.
+        Used for duplicate detection - returns existing active applications.
         Maps to: FindRelatedApplications statement
         """
         if self.use_postgres:
@@ -284,18 +285,29 @@ class DatabaseService:
             for row in cursor.fetchall():
                 results.append({
                     'application_id': row[0],
-                    'funding_cycle_id': row[1],
-                    'external_org_id': row[2],
-                    'application_status_flag': row[3]
+                    'application_status_flag': row[1],
+                    'application_type_code': row[2]
                 })
             return results
         else:
             results = []
-            for app in self.data.get('applications', []):
-                if (app.get('funding_cycle_id') == fo and
-                    app.get('external_org_id') == org and
-                    app.get('application_status_flag') != 9):
-                    results.append(app)
+            # Join application_external_organizations with applications
+            # WHERE a.FundingCycleId = fo AND aeo.ExternalOrgId = org
+            for aeo in self.data.get('application_external_organizations', []):
+                if aeo.get('external_org_id') == org:
+                    # Find matching application
+                    app_id = aeo.get('application_id')
+                    for app in self.data.get('applications', []):
+                        if (app.get('application_id') == app_id and
+                            app.get('funding_cycle_id') == fo):
+                            status = app.get('application_status_flag')
+                            if status not in ['9', '10', 9, 10]:
+                                results.append({
+                                    'application_id': app.get('application_id'),
+                                    'application_status_flag': app.get('application_status_flag'),
+                                    'application_type_code': app.get('application_type_code')
+                                })
+                            break
             return results
     
     # ========================================

@@ -61,18 +61,18 @@ QUERIES = {
     """,
     
     'check_program_match': """
-        SELECT * FROM Grants g
+        SELECT g.GrantId FROM Grants g
         JOIN FundingCycles fc ON g.ProgramId = fc.ProgramId
         WHERE g.GrantId = %(grant_id)s
             AND fc.FundingCycleId = %(fo)s
     """,
     
     'find_related_applications': """
-        SELECT * FROM applications a
-        JOIN applicationexternalorganizations aeo 
-            ON a.ApplicationId = aeo.ApplicationId
-        WHERE fundingcycleid = %(fo)s
-            AND externalorgid = %(org)s
-            AND ApplicationStatusFlag != 9
+        SELECT a.ApplicationId, a.ApplicationStatusFlag, a.ApplicationTypeCode
+        FROM ApplicationExternalOrganizations aeo
+        JOIN Applications a ON a.ApplicationId = aeo.ApplicationId
+        WHERE a.FundingCycleId = %(fo)s
+            AND aeo.ExternalOrgId = %(org)s
+            AND a.ApplicationStatusFlag NOT IN (9, 10)
     """
 }
