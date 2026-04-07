@@ -132,6 +132,79 @@ class SF424Validator:
         
         return errors
     
+    def _normalize_application_type(self, app_type: str) -> str:
+        """
+        Normalize application type to numeric code.
+        Handles both text values from PDF form and numeric codes.
+        
+        PDF Form Values (from SF-424 Section 2):
+        - "New" → 1
+        - "Continuation" → 2
+        - "Revision" → 3
+        
+        Args:
+            app_type: Application type from form (text or numeric)
+            
+        Returns:
+            Numeric code as string ("1", "2", or "3"), or original value if unknown
+        """
+        if not app_type:
+            return app_type
+        
+        app_type_str = str(app_type).strip()
+        
+        # Already numeric
+        if app_type_str in ["1", "2", "3"]:
+            return app_type_str
+        
+        # Text to numeric mapping (exact PDF form values)
+        mapping = {
+            "new": "1",
+            "continuation": "2",
+            "revision": "3"
+        }
+        
+        normalized = mapping.get(app_type_str.lower())
+        return normalized if normalized else app_type_str
+    
+    def _normalize_submission_type(self, sub_type: str) -> str:
+        """
+        Normalize submission type to numeric code.
+        Handles both text values from PDF form and numeric codes.
+        
+        PDF Form Values (from SF-424 Section 1):
+        - "Preapplication" (not commonly used)
+        - "Application" → 1
+        - "Changed/Corrected Application" → 2
+        
+        Args:
+            sub_type: Submission type from form (text or numeric)
+            
+        Returns:
+            Numeric code as string ("1" or "2"), or original value if unknown
+        """
+        if not sub_type:
+            return sub_type
+        
+        sub_type_str = str(sub_type).strip()
+        
+        # Already numeric
+        if sub_type_str in ["1", "2"]:
+            return sub_type_str
+        
+        # Text to numeric mapping (exact PDF form values)
+        mapping = {
+            "preapplication": "1",  # Treat as application
+            "application": "1",
+            "changed/corrected application": "2",
+            "changed": "2",  # Partial match
+            "corrected": "2",  # Partial match
+            "changed/corrected": "2"  # Partial match
+        }
+        
+        normalized = mapping.get(sub_type_str.lower())
+        return normalized if normalized else sub_type_str
+    
     def _validate_database_rules(self, form_data: Dict[str, Any]) -> List[str]:
         """
         Validate form data against database records using typed models.
@@ -200,7 +273,9 @@ class SF424Validator:
                 application_type = form_data.get('application_type')
                 if application_type:
                     try:
-                        app_type_code = int(application_type)
+                        # Normalize to numeric code
+                        app_type_normalized = self._normalize_application_type(application_type)
+                        app_type_code = int(app_type_normalized)
                         type_of_app_by_fo = funding_opportunity.type_of_app_by_fo
                         
                         # TypeOfAppByFO = 2 (Continuation only), but application is New (1)
@@ -219,6 +294,16 @@ class SF424Validator:
                     except (ValueError, TypeError):
                         # Invalid application type format - will be caught by other validation
                         pass
+                
+                # ========================================
+                # Federal Award Identifier Validation for "New Only" Opportunities
+                # ========================================
+                # Validate Grant Number should not be populated for "New only" funding opportunities
+                federal_award_identifier = form_data.get('federal_award_identifier')
+                if federal_award_identifier and funding_opportunity.type_of_app_by_fo == 1:
+                    errors.append(
+                        f"Remove Federal Award Identifier: Funding Opportunity '{fon}' only accepts New applications"
+                    )
                 
                 # ========================================
                 # Duplicate Application Detection
@@ -249,7 +334,10 @@ class SF424Validator:
         application_type = form_data.get('application_type')
         federal_award_identifier = form_data.get('federal_award_identifier')
         
-        if application_type == "2":  # Continuation application
+        # Normalize application type to handle both text and numeric values
+        app_type_normalized = self._normalize_application_type(application_type)
+        
+        if app_type_normalized == "2":  # Continuation application
             # Require grant number for continuation applications
             if not federal_award_identifier:
                 errors.append("Grant number required for Continuation applications")

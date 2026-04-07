@@ -209,6 +209,16 @@ class DatabaseService:
             return results
         else:
             results = []
+            
+            # Get the program_id from the funding cycle
+            fc = next((f for f in self.data.get('funding_cycles', []) 
+                      if f.get('funding_cycle_id') == funding_cycle_id), None)
+            
+            if not fc:
+                return results
+            
+            fo_program_id = fc.get('program_id')
+            
             for grant_org in self.data.get('grant_organizations', []):
                 if (grant_org.get('org_id') == organization_id and
                     grant_org.get('functional_org_type_code') == 1):
@@ -218,22 +228,24 @@ class DatabaseService:
                                  if g.get('grant_id') == grant_id), None)
                     
                     if grant:
-                        award = next((a for a in self.data.get('awards', []) 
-                                     if a.get('grant_id') == grant_id), None)
-                        
-                        if award:
-                            end_date_str = award.get('project_period_end_date')
-                            if end_date_str:
-                                end_date = datetime.fromisoformat(end_date_str)
-                                if end_date > datetime.now():
-                                    results.append({
-                                        'grant_id': grant_id,
-                                        'grant_number': grant.get('grant_number'),
-                                        'program_id': grant.get('program_id'),
-                                        'organization_id': organization_id,
-                                        'grant_status': 'Active',
-                                        'project_period_end_date': end_date_str
-                                    })
+                        # Filter by program match
+                        if grant.get('program_id') == fo_program_id:
+                            award = next((a for a in self.data.get('awards', []) 
+                                         if a.get('grant_id') == grant_id), None)
+                            
+                            if award:
+                                end_date_str = award.get('project_period_end_date')
+                                if end_date_str:
+                                    end_date = datetime.fromisoformat(end_date_str)
+                                    if end_date > datetime.now():
+                                        results.append({
+                                            'grant_id': grant_id,
+                                            'grant_number': grant.get('grant_number'),
+                                            'program_id': grant.get('program_id'),
+                                            'organization_id': organization_id,
+                                            'grant_status': 'Active',
+                                            'project_period_end_date': end_date_str
+                                        })
             return results
     
     # ========================================

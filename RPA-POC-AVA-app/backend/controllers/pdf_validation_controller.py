@@ -92,8 +92,61 @@ def analyze_pdf():
         
         validation_errors = validator.validate_form_data(form_data)
         
+        # Get funding opportunity to check type_of_app_by_fo for Grant Number display
+        funding_opportunity = None
+        fon = form_data.get('funding_opportunity_number')
+        if fon:
+            funding_opportunity = validator.db_service.get_funding_cycle_by_code(fon)
+        
+        # Build consistent status section
+        app_type = form_data.get('application_type', 'Not specified')
+        grant_number = form_data.get('federal_award_identifier')
+        app_type_normalized = validator._normalize_application_type(app_type)
+        
+        if validation_errors:
+            consistent_section = "<strong>Form Status: Not Ready for Submission to Grants.gov</strong><br><br>"
+            
+            # Add form fields section first
+            consistent_section += "<strong>Form fields:</strong><br>"
+            consistent_section += f"• <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')}<br>"
+            consistent_section += f"• <strong>Funding Opportunity:</strong> {fon or 'Not provided'}<br>"
+            consistent_section += f"• <strong>Application Type:</strong> {app_type}<br>"
+            
+            # Show Grant Number only if NOT "New only" funding opportunity
+            if (grant_number and 
+                app_type_normalized in ['2', '3'] and
+                funding_opportunity and 
+                funding_opportunity.type_of_app_by_fo != 1):
+                consistent_section += f"• <strong>Grant Number:</strong> {grant_number}<br>"
+            
+            consistent_section += "<br>"
+            
+            # Add validation issues after form fields
+            consistent_section += "<strong>Validation issues found:</strong><br>"
+            for error in validation_errors:
+                consistent_section += f"• {error}<br>"
+        else:
+            consistent_section = "<strong>Form Status: Ready for Submission to Grants.gov</strong> ✅<br><br>"
+            consistent_section += "All validation checks passed:<br>"
+            consistent_section += f"• <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')} — Verified<br>"
+            consistent_section += f"• <strong>Funding Opportunity:</strong> {fon or 'Not provided'} — Entered<br>"
+            consistent_section += f"• <strong>Application Type:</strong> {app_type}<br>"
+            
+            # Show Grant Number only if NOT "New only" funding opportunity
+            if (grant_number and 
+                app_type_normalized in ['2', '3'] and
+                funding_opportunity and 
+                funding_opportunity.type_of_app_by_fo != 1):
+                consistent_section += f"• <strong>Grant Number:</strong> {grant_number}<br>"
+        
+        consistent_section += "<br>"
+        
+        # Get AI-generated troubleshooting guidance
         import asyncio
-        ai_response = asyncio.run(ai_service.analyze_form(form_data, validation_errors))
+        ai_guidance = asyncio.run(ai_service.get_troubleshooting_guidance(form_data, validation_errors))
+        
+        # Combine consistent section + AI guidance
+        ai_response = consistent_section + ai_guidance
         
         session_manager.save_session(file_id, {
             'file_name': data.get('file_name', 'unknown.pdf'),

@@ -85,7 +85,7 @@
       "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
       "funding_cycle_code": "HRSA-26-092",
       "announcement_number": "HRSA-26-092",
-      "type_of_app_by_fo": 1,
+      "type_of_app_by_fo": 2,
       "program_id": 2
     },
     {
@@ -108,38 +108,40 @@
       "announcement_number": "HRSA-26-095",
       "type_of_app_by_fo": 1,
       "program_id": 5
+    },
+    {
+      "funding_cycle_id": "b8c9d0e1-f2a3-4b5c-6d7e-8f9a0b1c2d3e",
+      "funding_cycle_code": "HRSA-26-096",
+      "announcement_number": "HRSA-26-096",
+      "type_of_app_by_fo": 3,
+      "program_id": 1
     }
   ],
   "grants": [
     {
       "grant_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
       "grant_number": "H80CS12345",
-      "program_id": 4,
-      "grant_status": "Active"
+      "program_id": 4
     },
     {
       "grant_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
       "grant_number": "H80CS67890",
-      "program_id": 1,
-      "grant_status": "Active"
+      "program_id": 1
     },
     {
       "grant_id": "b8c9d0e1-f2a3-4b5c-5d6e-7f8a9b0c1d2e",
       "grant_number": "H80CS11111",
-      "program_id": 3,
-      "grant_status": "Active"
+      "program_id": 3
     },
     {
       "grant_id": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f",
       "grant_number": "H80CS99999",
-      "program_id": 2,
-      "grant_status": "Active"
+      "program_id": 2
     },
     {
       "grant_id": "d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a",
       "grant_number": "H80CS55555",
-      "program_id": 5,
-      "grant_status": "Inactive"
+      "program_id": 5
     }
   ],
   "awards": [
@@ -245,7 +247,7 @@
       "application_id": "550e8400-e29b-41d4-a716-446655440004",
       "grants_gov_application_id": "GRANT-2026-004",
       "grants_gov_tracking_no": "TRACK-2026-004",
-      "application_status_flag": "1",
+      "application_status_flag": "10",
       "application_type_code": "2",
       "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c"
     },
@@ -285,7 +287,7 @@
       "application_id": "550e8400-e29b-41d4-a716-446655440009",
       "grants_gov_application_id": "GRANT-2026-009",
       "grants_gov_tracking_no": "TRACK-2026-009",
-      "application_status_flag": "1",
+      "application_status_flag": "9",
       "application_type_code": "2",
       "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c"
     },

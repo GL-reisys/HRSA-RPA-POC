@@ -80,6 +80,48 @@ class AIService:
             print(f"Error analyzing form: {str(e)}")
             return f"I had trouble analyzing the form. Error: {str(e)}"
     
+    async def get_troubleshooting_guidance(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
+        """
+        Generate troubleshooting guidance for form validation issues.
+        This method generates ONLY the "What to check" section, not the status or validation list.
+        
+        Args:
+            form_data: Extracted form data dictionary
+            validation_errors: List of validation error messages
+            
+        Returns:
+            Troubleshooting guidance as HTML-formatted string
+        """
+        if not self.client:
+            return self._build_fallback_guidance(form_data, validation_errors)
+        
+        try:
+            self.set_form_context(form_data, validation_errors)
+            
+            context = self._build_troubleshooting_context(form_data, validation_errors)
+            
+            messages = []
+            system_prompt = self._build_troubleshooting_system_prompt()
+            messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": context})
+            
+            print(f"Sending troubleshooting request to Azure OpenAI")
+            
+            response = self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=messages,
+                max_completion_tokens=1500
+            )
+            
+            ai_response = response.choices[0].message.content
+            print(f"Received troubleshooting guidance: {len(ai_response)} characters")
+            
+            return ai_response
+            
+        except Exception as e:
+            print(f"Error generating troubleshooting guidance: {str(e)}")
+            return self._build_fallback_guidance(form_data, validation_errors)
+    
     async def chat_completion(
         self, 
         message: str, 
@@ -175,6 +217,22 @@ Keep answers brief and specific to the form data. Example:<br><br>The <strong>Pr
 
         return prompt
     
+    def _build_troubleshooting_system_prompt(self) -> str:
+        """Build system prompt specifically for troubleshooting guidance generation."""
+        prompt = """Generate troubleshooting guidance for SF-424 form validation issues.
+
+Rules:
+- DO NOT include status headers or list validation errors
+- Start with actionable steps (50-100 words)
+- Focus on form data corrections (typos, field matching, format)
+- Use HTML: <br> for line breaks, <strong> for emphasis
+
+Example format:
+
+<strong>What to check:</strong><br>• Verify the <strong>Funding Opportunity</strong> code matches the announcement exactly (case, hyphens, spaces — no trailing spaces)<br>• Re-select the opportunity from the form's dropdown to ensure the code field is populated<br>• Confirm the <strong>Application Type</strong> aligns with what the funding opportunity accepts<br><br>If issues persist, contact your program officer."""
+        
+        return prompt
+    
     def _build_form_context_summary(
         self, 
         form_data: Dict[str, Any], 
@@ -250,6 +308,31 @@ Keep answers brief and specific to the form data. Example:<br><br>The <strong>Pr
         
         return "\n".join(relevant_fields) if relevant_fields else ""
     
+    def _build_troubleshooting_context(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
+        """Build context for troubleshooting guidance generation."""
+        lines = []
+        
+        if validation_errors:
+            lines.append("Validation errors to address:")
+            for error in validation_errors:
+                lines.append(f"- {error}")
+        else:
+            lines.append("All validation checks passed.")
+        
+        lines.append("")
+        lines.append("Form context:")
+        lines.append(f"- UEI: {form_data.get('samuei', 'Not provided')}")
+        lines.append(f"- Funding Opportunity: {form_data.get('funding_opportunity_number', 'Not provided')}")
+        lines.append(f"- Application Type: {form_data.get('application_type', 'Not provided')}")
+        
+        if form_data.get('federal_award_identifier'):
+            lines.append(f"- Grant Number: {form_data.get('federal_award_identifier')}")
+        
+        lines.append("")
+        lines.append("Generate concise troubleshooting guidance.")
+        
+        return "\n".join(lines)
+    
     def _build_fallback_analysis(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
         """Build basic analysis when AI service is not available."""
         if validation_errors:
@@ -263,3 +346,10 @@ Keep answers brief and specific to the form data. Example:<br><br>The <strong>Pr
             message = f"<strong>Form Status: Ready for Submission</strong> {status_icon}<br><br>All validation checks passed successfully.<br><br>Your SF-424 form is complete and ready for submission."
         
         return message
+    
+    def _build_fallback_guidance(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
+        """Build basic troubleshooting guidance when AI service is not available."""
+        if validation_errors:
+            return "<strong>What to check:</strong><br>• Review each validation error above<br>• Verify all field values match your official records<br>• Ensure there are no typos or extra spaces<br>• Contact your program officer if you need assistance"
+        else:
+            return "Your form is ready for submission to Grants.gov."
