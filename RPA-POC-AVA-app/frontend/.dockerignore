@@ -1,7 +1,10 @@
 node_modules
 .next
+coverage
 .git
 .gitignore
 README.md
-.env*.local
+.env
+.env.*
 npm-debug.log*
+.DS_Store

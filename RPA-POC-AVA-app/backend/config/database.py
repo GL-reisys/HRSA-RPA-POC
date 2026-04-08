@@ -2,10 +2,15 @@ import json
 import os
 from datetime import datetime
 from typing import List, Dict, Optional
+from config.runtime import resolve_app_path
 
 class JSONDatabase:
-    def __init__(self, db_path: str = 'database/data.json'):
-        self.db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db_path)
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path:
+            self.db_path = db_path if os.path.isabs(db_path) else resolve_app_path(db_path, db_path)
+        else:
+            data_dir = resolve_app_path(os.getenv('DATA_DIR'), 'database')
+            self.db_path = os.path.join(data_dir, 'data.json')
         self._ensure_db_exists()
     
     def _ensure_db_exists(self):

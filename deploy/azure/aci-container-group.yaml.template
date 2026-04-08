@@ -1,0 +1,59 @@
+apiVersion: 2021-10-01
+location: __AZURE_LOCATION__
+name: __AZURE_CONTAINER_GROUP_NAME__
+type: Microsoft.ContainerInstance/containerGroups
+properties:
+  osType: Linux
+  restartPolicy: Always
+  imageRegistryCredentials:
+    - server: __AZURE_ACR_LOGIN_SERVER__
+      username: __AZURE_ACR_USERNAME__
+      password: __AZURE_ACR_PASSWORD__
+  ipAddress:
+    type: Public
+    dnsNameLabel: __AZURE_DNS_LABEL__
+    ports:
+      - protocol: tcp
+        port: 3000
+  containers:
+    - name: frontend
+      properties:
+        image: __FRONTEND_IMAGE__
+        resources:
+          requests:
+            cpu: __FRONTEND_CPU__
+            memoryInGB: __FRONTEND_MEMORY_GB__
+        ports:
+          - port: 3000
+        environmentVariables:
+          - name: PORT
+            value: "3000"
+          - name: API_INTERNAL_URL
+            value: "__API_INTERNAL_URL__"
+    - name: backend
+      properties:
+        image: __BACKEND_IMAGE__
+        resources:
+          requests:
+            cpu: __BACKEND_CPU__
+            memoryInGB: __BACKEND_MEMORY_GB__
+        ports:
+          - port: 5000
+        environmentVariables:
+          - name: PORT
+            value: "5000"
+          - name: FLASK_ENV
+            value: "production"
+          - name: FLASK_DEBUG
+            value: "0"
+          - name: CORS_ALLOWED_ORIGINS
+            value: "__CORS_ALLOWED_ORIGINS__"
+          - name: UPLOAD_DIR
+            value: "/app/uploads"
+          - name: DATA_DIR
+            value: "/app/database"
+tags:
+  app: hrsa-rpa-ava
+  environment: production
+  managed-by: github-actions
+
