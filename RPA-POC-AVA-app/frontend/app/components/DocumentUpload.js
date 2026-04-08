@@ -5,7 +5,7 @@ import { Box, Button, Typography, LinearProgress, Alert } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 
-export default function DocumentUpload({ apiUrl, onUploadSuccess }) {
+export default function DocumentUpload({ onUploadSuccess }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -61,7 +61,7 @@ export default function DocumentUpload({ apiUrl, onUploadSuccess }) {
       setUploading(true);
       setMessage(null);
 
-      const response = await axios.post(`${apiUrl}/api/documents/upload`, formData, {
+      const response = await axios.post('/api/documents/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

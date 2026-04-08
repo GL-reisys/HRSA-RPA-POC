@@ -6,23 +6,17 @@ import DocumentUpload from '../components/DocumentUpload';
 import DocumentList from '../components/DocumentList';
 import axios from 'axios';
 
+const DOCUMENTS_API_PATH = '/api/documents';
+
 export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [config, setConfig] = useState({ apiUrl: 'http://localhost:5000' });
-
-  useEffect(() => {
-    fetch('/config.json')
-      .then(res => res.json())
-      .then(data => setConfig(data))
-      .catch(err => console.error('Error loading config:', err));
-  }, []);
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${config.apiUrl}/api/documents`);
+      const response = await axios.get(DOCUMENTS_API_PATH);
       setDocuments(response.data.documents || []);
       setError(null);
     } catch (err) {
@@ -35,7 +29,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDocuments();
-  }, [config.apiUrl]);
+  }, []);
 
   const handleUploadSuccess = () => {
     fetchDocuments();
@@ -43,7 +37,7 @@ export default function Dashboard() {
 
   const handleDelete = async (docId) => {
     try {
-      await axios.delete(`${config.apiUrl}/api/documents/${docId}`);
+      await axios.delete(`${DOCUMENTS_API_PATH}/${docId}`);
       fetchDocuments();
     } catch (err) {
       console.error('Error deleting document:', err);
@@ -69,10 +63,7 @@ export default function Dashboard() {
             <Typography variant="h6" gutterBottom>
               Upload Document
             </Typography>
-            <DocumentUpload 
-              apiUrl={config.apiUrl} 
-              onUploadSuccess={handleUploadSuccess}
-            />
+            <DocumentUpload onUploadSuccess={handleUploadSuccess} />
           </Paper>
         </Grid>
 

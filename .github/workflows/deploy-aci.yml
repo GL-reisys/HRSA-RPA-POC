@@ -1,0 +1,156 @@
+name: Deploy ACI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-aci.yml'
+      - 'RPA-POC-AVA-app/backend/**'
+      - 'RPA-POC-AVA-app/frontend/**'
+      - 'RPA-POC-AVA-app/docker-compose.yml'
+      - 'deploy/azure/**'
+      - 'scripts/azure/**'
+  workflow_dispatch:
+    inputs:
+      container_group_name:
+        description: Optional override for the new Azure Container Instance name
+        required: false
+      dns_label:
+        description: Optional override for the public Azure DNS label
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  APP_ROOT: RPA-POC-AVA-app
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || 'f1aaa597-6b5b-4a14-9ea0-275f389739a2' }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'RG-OpenSourcePOC' }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus' }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME || 'reiopensourcepoc' }}
+  AZURE_ACR_LOGIN_SERVER: ${{ vars.AZURE_ACR_LOGIN_SERVER || 'reiopensourcepoc.azurecr.io' }}
+  DEFAULT_CONTAINER_GROUP_NAME: ${{ vars.AZURE_CONTAINER_GROUP_NAME || 'hrsa-rpa-ava-aci' }}
+  DEFAULT_DNS_LABEL: ${{ vars.AZURE_DNS_LABEL || 'hrsa-rpa-ava' }}
+  FRONTEND_CPU: '0.5'
+  FRONTEND_MEMORY_GB: '1.0'
+  BACKEND_CPU: '0.5'
+  BACKEND_MEMORY_GB: '1.0'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set deployment variables
+        shell: bash
+        run: |
+          container_group_name="${{ github.event.inputs.container_group_name }}"
+          dns_label="${{ github.event.inputs.dns_label }}"
+
+          if [ -z "$container_group_name" ]; then
+            container_group_name="$DEFAULT_CONTAINER_GROUP_NAME"
+          fi
+
+          if [ -z "$dns_label" ]; then
+            dns_label="$DEFAULT_DNS_LABEL"
+          fi
+
+          echo "AZURE_CONTAINER_GROUP_NAME=$container_group_name" >> "$GITHUB_ENV"
+          echo "AZURE_DNS_LABEL=$dns_label" >> "$GITHUB_ENV"
+          echo "BACKEND_IMAGE=$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-backend:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "BACKEND_IMAGE_LATEST=$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-backend:latest" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-frontend:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE_LATEST=$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-frontend:latest" >> "$GITHUB_ENV"
+          echo "API_INTERNAL_URL=http://127.0.0.1:5000" >> "$GITHUB_ENV"
+          echo "CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://${dns_label}.${AZURE_LOCATION}.azurecontainer.io:3000" >> "$GITHUB_ENV"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set active Azure subscription
+        shell: bash
+        run: az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Validate Azure deployment prerequisites
+        shell: bash
+        run: bash scripts/azure/check_aci_prereqs.sh
+
+      - name: Fetch ACR deployment credentials
+        shell: bash
+        run: |
+          acr_username=$(az acr credential show --name "$AZURE_ACR_NAME" --query username -o tsv)
+          acr_password=$(az acr credential show --name "$AZURE_ACR_NAME" --query "passwords[0].value" -o tsv)
+
+          echo "::add-mask::$acr_password"
+          echo "AZURE_ACR_USERNAME=$acr_username" >> "$GITHUB_ENV"
+          echo "AZURE_ACR_PASSWORD=$acr_password" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate Docker to ACR
+        shell: bash
+        run: az acr login --name "$AZURE_ACR_NAME"
+
+      - name: Build and push backend image
+        shell: bash
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --file "$APP_ROOT/backend/Dockerfile" \
+            --tag "$BACKEND_IMAGE" \
+            --tag "$BACKEND_IMAGE_LATEST" \
+            --push \
+            "$APP_ROOT/backend"
+
+      - name: Build and push frontend image
+        shell: bash
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --file "$APP_ROOT/frontend/Dockerfile" \
+            --build-arg API_INTERNAL_URL="$API_INTERNAL_URL" \
+            --tag "$FRONTEND_IMAGE" \
+            --tag "$FRONTEND_IMAGE_LATEST" \
+            --push \
+            "$APP_ROOT/frontend"
+
+      - name: Render Azure Container Instance manifest
+        shell: bash
+        run: |
+          output_path="$RUNNER_TEMP/aci-container-group.yaml"
+
+          python scripts/azure/render_aci_manifest.py \
+            --template deploy/azure/aci-container-group.yaml.template \
+            --output "$output_path"
+
+          grep -q "name: $AZURE_CONTAINER_GROUP_NAME" "$output_path"
+          grep -q "$FRONTEND_IMAGE" "$output_path"
+          grep -q "$BACKEND_IMAGE" "$output_path"
+
+          echo "ACI_MANIFEST_PATH=$output_path" >> "$GITHUB_ENV"
+
+      - name: Deploy Azure Container Instance
+        shell: bash
+        run: bash scripts/azure/deploy_aci.sh "$ACI_MANIFEST_PATH"
+
+      - name: Smoke test deployed frontend
+        shell: bash
+        run: |
+          frontend_url="http://${AZURE_DNS_LABEL}.${AZURE_LOCATION}.azurecontainer.io:3000"
+          curl --fail --retry 12 --retry-delay 10 --retry-connrefused "$frontend_url/"
+          curl --fail --retry 12 --retry-delay 10 --retry-connrefused "$frontend_url/api/documents"

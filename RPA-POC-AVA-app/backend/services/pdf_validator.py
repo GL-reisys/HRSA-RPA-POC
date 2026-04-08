@@ -2,18 +2,18 @@ import os
 from typing import Dict, Optional
 from werkzeug.utils import secure_filename
 from utils.pdf_reader import PDFReader
+from config.runtime import resolve_upload_path, resolve_app_path
 
 class PDFValidatorService:
     ALLOWED_EXTENSIONS = {'pdf'}
     MAX_FILE_SIZE = 50 * 1024 * 1024
     
-    def __init__(self, upload_folder: str = 'uploads'):
-        self.upload_folder = upload_folder
+    def __init__(self, upload_folder: Optional[str] = None):
+        self.upload_folder = resolve_app_path(upload_folder or os.getenv('UPLOAD_DIR'), 'uploads')
         self._ensure_upload_folder()
     
     def _ensure_upload_folder(self):
-        upload_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), self.upload_folder)
-        os.makedirs(upload_path, exist_ok=True)
+        os.makedirs(self.upload_folder, exist_ok=True)
     
     @staticmethod
     def allowed_file(filename: str) -> bool:
@@ -36,12 +36,11 @@ class PDFValidatorService:
         counter = 1
         final_name = secure_name
         
-        upload_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), self.upload_folder)
-        file_path = os.path.join(upload_path, final_name)
+        file_path = os.path.join(self.upload_folder, final_name)
         
         while os.path.exists(file_path):
             final_name = f"{base_name}_{counter}{extension}"
-            file_path = os.path.join(upload_path, final_name)
+            file_path = os.path.join(self.upload_folder, final_name)
             counter += 1
         
         try:
@@ -50,7 +49,7 @@ class PDFValidatorService:
             return {
                 'success': True,
                 'filename': final_name,
-                'file_path': os.path.join(self.upload_folder, final_name)
+                'file_path': final_name
             }
         except Exception as e:
             return {
@@ -59,7 +58,7 @@ class PDFValidatorService:
             }
     
     def validate_pdf(self, file_path: str) -> Dict:
-        full_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path)
+        full_path = resolve_upload_path(file_path, self.upload_folder)
         
         validation_result = PDFReader.validate_pdf_structure(full_path)
         

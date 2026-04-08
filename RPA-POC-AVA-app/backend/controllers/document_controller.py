@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from config.database import JSONDatabase
+from config.runtime import resolve_upload_path
 from services.pdf_validator import PDFValidatorService
 import os
 
@@ -60,7 +61,7 @@ def delete_document(doc_id):
     
     file_path = document.get('file_path')
     if file_path:
-        full_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path)
+        full_path = resolve_upload_path(file_path, pdf_service.upload_folder)
         if os.path.exists(full_path):
             try:
                 os.remove(full_path)
@@ -81,7 +82,7 @@ def update_document(doc_id):
     if not document:
         return jsonify({'error': 'Document not found'}), 404
     
-    updates = request.get_json()
+    updates = request.get_json() or {}
     
     allowed_updates = ['status', 'validation_results']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_updates}
