@@ -21,19 +21,6 @@ Defaults:
 "@
 }
 
-if ($EnvFile -eq "-h" -or $EnvFile -eq "--help") {
-    Write-Usage
-    exit 0
-}
-
-if ([string]::IsNullOrWhiteSpace($EnvFile)) {
-    $EnvFile = Join-Path $ScriptDir "local.env"
-}
-
-if (-not (Test-Path $EnvFile)) {
-    Write-Error "Environment file not found: $EnvFile`nCopy scripts/azure/local.env.example to scripts/azure/local.env and fill in the values."
-}
-
 function Import-DotEnv {
     param([string]$Path)
 
@@ -62,6 +49,19 @@ function Require-Command {
     }
 }
 
+function Get-CommandOrNull {
+    param([string[]]$Names)
+
+    foreach ($name in $Names) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        if ($command) {
+            return $command.Name
+        }
+    }
+
+    return $null
+}
+
 function Require-Env {
     param([string]$Name)
 
@@ -73,11 +73,38 @@ function Require-Env {
     return $value
 }
 
+function Set-DefaultEnv {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if (-not [Environment]::GetEnvironmentVariable($Name, "Process")) {
+        [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
+    }
+}
+
+if ($EnvFile -eq "-h" -or $EnvFile -eq "--help") {
+    Write-Usage
+    exit 0
+}
+
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+    $EnvFile = Join-Path $ScriptDir "local.env"
+}
+
+if (-not (Test-Path $EnvFile)) {
+    Write-Error "Environment file not found: $EnvFile`nCopy scripts/azure/local.env.example to scripts/azure/local.env and fill in the values."
+}
+
 Import-DotEnv -Path $EnvFile
 
 Require-Command -Name "az"
 Require-Command -Name "docker"
-Require-Command -Name "python"
+$PythonCommand = Get-CommandOrNull -Names @("python3", "python")
+if (-not $PythonCommand) {
+    throw "python3 or python is required."
+}
 
 $requiredVars = @(
     "AZURE_SUBSCRIPTION_ID",
@@ -93,51 +120,24 @@ foreach ($varName in $requiredVars) {
     [void](Require-Env -Name $varName)
 }
 
-if (-not [Environment]::GetEnvironmentVariable("FRONTEND_IMAGE_TAG", "Process")) {
-    [Environment]::SetEnvironmentVariable("FRONTEND_IMAGE_TAG", "manual-amd64", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("BACKEND_IMAGE_TAG", "Process")) {
-    [Environment]::SetEnvironmentVariable("BACKEND_IMAGE_TAG", "manual-amd64", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("FRONTEND_CPU", "Process")) {
-    [Environment]::SetEnvironmentVariable("FRONTEND_CPU", "0.5", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("FRONTEND_MEMORY_GB", "Process")) {
-    [Environment]::SetEnvironmentVariable("FRONTEND_MEMORY_GB", "1.0", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("BACKEND_CPU", "Process")) {
-    [Environment]::SetEnvironmentVariable("BACKEND_CPU", "0.5", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("BACKEND_MEMORY_GB", "Process")) {
-    [Environment]::SetEnvironmentVariable("BACKEND_MEMORY_GB", "1.0", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("API_INTERNAL_URL", "Process")) {
-    [Environment]::SetEnvironmentVariable("API_INTERNAL_URL", "http://127.0.0.1:5000", "Process")
-}
+Set-DefaultEnv -Name "FRONTEND_IMAGE_TAG" -Value "manual-amd64"
+Set-DefaultEnv -Name "BACKEND_IMAGE_TAG" -Value "manual-amd64"
+Set-DefaultEnv -Name "FRONTEND_CPU" -Value "0.5"
+Set-DefaultEnv -Name "FRONTEND_MEMORY_GB" -Value "1.0"
+Set-DefaultEnv -Name "BACKEND_CPU" -Value "0.5"
+Set-DefaultEnv -Name "BACKEND_MEMORY_GB" -Value "1.0"
+Set-DefaultEnv -Name "API_INTERNAL_URL" -Value "http://127.0.0.1:5000"
 
 $azureLocation = [Environment]::GetEnvironmentVariable("AZURE_LOCATION", "Process")
 $azureDnsLabel = [Environment]::GetEnvironmentVariable("AZURE_DNS_LABEL", "Process")
-
-if (-not [Environment]::GetEnvironmentVariable("CORS_ALLOWED_ORIGINS", "Process")) {
-    $defaultOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://$azureDnsLabel.$azureLocation.azurecontainer.io:3000"
-    [Environment]::SetEnvironmentVariable("CORS_ALLOWED_ORIGINS", $defaultOrigins, "Process")
-}
-
-$tempManifestPath = Join-Path ([System.IO.Path]::GetTempPath()) "hrsa-rpa-ava-aci.yaml"
-if (-not [Environment]::GetEnvironmentVariable("ACI_MANIFEST_PATH", "Process")) {
-    [Environment]::SetEnvironmentVariable("ACI_MANIFEST_PATH", $tempManifestPath, "Process")
-}
+Set-DefaultEnv -Name "CORS_ALLOWED_ORIGINS" -Value "http://localhost:3000,http://127.0.0.1:3000,http://$azureDnsLabel.$azureLocation.azurecontainer.io:3000"
+Set-DefaultEnv -Name "ACI_MANIFEST_PATH" -Value (Join-Path ([System.IO.Path]::GetTempPath()) "hrsa-rpa-ava-aci.yaml")
 
 $acrLoginServer = [Environment]::GetEnvironmentVariable("AZURE_ACR_LOGIN_SERVER", "Process")
 $frontendTag = [Environment]::GetEnvironmentVariable("FRONTEND_IMAGE_TAG", "Process")
 $backendTag = [Environment]::GetEnvironmentVariable("BACKEND_IMAGE_TAG", "Process")
-
-if (-not [Environment]::GetEnvironmentVariable("FRONTEND_IMAGE", "Process")) {
-    [Environment]::SetEnvironmentVariable("FRONTEND_IMAGE", "$acrLoginServer/hrsa-rpa-ava-frontend:$frontendTag", "Process")
-}
-if (-not [Environment]::GetEnvironmentVariable("BACKEND_IMAGE", "Process")) {
-    [Environment]::SetEnvironmentVariable("BACKEND_IMAGE", "$acrLoginServer/hrsa-rpa-ava-backend:$backendTag", "Process")
-}
+Set-DefaultEnv -Name "FRONTEND_IMAGE" -Value "$acrLoginServer/hrsa-rpa-ava-frontend:$frontendTag"
+Set-DefaultEnv -Name "BACKEND_IMAGE" -Value "$acrLoginServer/hrsa-rpa-ava-backend:$backendTag"
 
 $activeSubscription = az account show --query id -o tsv
 $expectedSubscription = [Environment]::GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID", "Process")
@@ -179,7 +179,7 @@ docker buildx build `
     (Join-Path $RepoRoot "RPA-POC-AVA-app/frontend")
 
 Write-Host "Rendering ACI manifest to $aciManifestPath"
-python (Join-Path $ScriptDir "render_aci_manifest.py") `
+& $PythonCommand (Join-Path $ScriptDir "render_aci_manifest.py") `
     --template (Join-Path $RepoRoot "deploy/azure/aci-container-group.yaml.template") `
     --output $aciManifestPath
 
@@ -253,4 +253,3 @@ catch {
 $fqdn = az container show --resource-group $resourceGroup --name $containerGroupName --query ipAddress.fqdn -o tsv
 Write-Host "Deployment completed."
 Write-Host "Frontend URL: http://$fqdn:3000"
-
