@@ -16,8 +16,6 @@ import SendIcon from '@mui/icons-material/Send';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DescriptionIcon from '@mui/icons-material/Description';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
 export default function ChatInterface({ 
   fileId, 
   fileName, 
@@ -65,7 +63,7 @@ export default function ChatInterface({
     setChatHistory(prev => [...prev, newUserMessage]);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/message`, {
+      const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

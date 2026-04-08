@@ -40,7 +40,7 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.GITHUB_RUNNER || 'ubuntu-latest' }}
 
     steps:
       - name: Check out code
@@ -74,12 +74,48 @@ jobs:
           echo "API_INTERNAL_URL=http://127.0.0.1:5000" >> "$GITHUB_ENV"
           echo "CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://${dns_label}.${AZURE_LOCATION}.azurecontainer.io:3000" >> "$GITHUB_ENV"
 
+      - name: Validate Azure login configuration
+        if: ${{ vars.GITHUB_RUNNER != 'self-hosted' }}
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          missing=0
+
+          if [ -z "$AZURE_CLIENT_ID" ]; then
+            echo "Missing GitHub Actions secret: AZURE_CLIENT_ID" >&2
+            missing=1
+          fi
+
+          if [ -z "$AZURE_TENANT_ID" ]; then
+            echo "Missing GitHub Actions secret: AZURE_TENANT_ID" >&2
+            missing=1
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Azure login is configured for OIDC. Add the missing secrets in GitHub Settings -> Secrets and variables -> Actions, then ensure the Azure app registration has a federated credential for this repository." >&2
+            exit 1
+          fi
+
       - name: Azure login
+        if: ${{ vars.GITHUB_RUNNER != 'self-hosted' }}
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate self-hosted Azure CLI session
+        if: ${{ vars.GITHUB_RUNNER == 'self-hosted' }}
+        shell: bash
+        run: |
+          active_subscription="$(az account show --query id -o tsv)"
+          if [ "$active_subscription" != "$AZURE_SUBSCRIPTION_ID" ]; then
+            echo "Self-hosted runner Azure CLI is logged into subscription $active_subscription, expected $AZURE_SUBSCRIPTION_ID." >&2
+            echo "Run 'az login' and 'az account set --subscription $AZURE_SUBSCRIPTION_ID' on the self-hosted runner machine." >&2
+            exit 1
+          fi
 
       - name: Set active Azure subscription
         shell: bash

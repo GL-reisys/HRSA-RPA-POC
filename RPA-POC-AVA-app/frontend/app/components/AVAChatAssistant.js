@@ -12,8 +12,6 @@ import { useDropzone } from 'react-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ChatInterface from './ChatInterface';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
 export default function AVAChatAssistant() {
   const [file, setFile] = useState(null);
   const [fileId, setFileId] = useState(null);
@@ -48,7 +46,7 @@ export default function AVAChatAssistant() {
       const formData = new FormData();
       formData.append('file', uploadedFile);
 
-      const uploadResponse = await fetch(`${API_BASE_URL}/api/pdf/upload`, {
+      const uploadResponse = await fetch('/api/pdf/upload', {
         method: 'POST',
         body: formData,
       });
@@ -63,7 +61,7 @@ export default function AVAChatAssistant() {
       
       setAnalyzing(true);
       
-      const analyzeResponse = await fetch(`${API_BASE_URL}/api/pdf/analyze`, {
+      const analyzeResponse = await fetch('/api/pdf/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +120,7 @@ export default function AVAChatAssistant() {
   const handleReset = async () => {
     if (fileId) {
       try {
-        await fetch(`${API_BASE_URL}/api/session/clear`, {
+        await fetch('/api/session/clear', {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

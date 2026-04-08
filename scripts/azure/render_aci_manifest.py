@@ -41,6 +41,9 @@ def build_context() -> dict[str, str]:
             "CORS_ALLOWED_ORIGINS",
             f"http://localhost:3000,http://127.0.0.1:3000,http://{dns_label}.{location}.azurecontainer.io:3000",
         ),
+        "__AZURE_OPENAI_ENDPOINT__": os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+        "__AZURE_OPENAI_API_KEY__": os.getenv("AZURE_OPENAI_API_KEY", ""),
+        "__AZURE_OPENAI_DEPLOYMENT__": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4"),
     }
 
 
@@ -73,4 +76,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
