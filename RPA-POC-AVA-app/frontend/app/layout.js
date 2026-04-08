@@ -6,8 +6,8 @@ import ThemeRegistry from './ThemeRegistry';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'RPA POC AVA',
-  description: 'RPA Proof of Concept - Document Validation Application',
+  title: 'Application Validation Assistant (AVA)',
+  description: 'AI-powered SF-424 form validation assistant',
 };
 
 export default function RootLayout({ children }) {
@@ -16,23 +16,16 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ThemeRegistry>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <AppBar position="static">
+            <AppBar position="static" sx={{ backgroundColor: '#003366' }}>
               <Toolbar>
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                  RPA POC AVA
+                <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                  Application Validation Assistant (AVA)
                 </Typography>
               </Toolbar>
             </AppBar>
-            <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }}>
+            <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }} maxWidth="xl">
               {children}
             </Container>
-            <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: '#f5f5f5' }}>
-              <Container maxWidth="lg">
-                <Typography variant="body2" color="text.secondary" align="center">
-                  © 2024 RPA POC AVA. All rights reserved.
-                </Typography>
-              </Container>
-            </Box>
           </Box>
         </ThemeRegistry>
       </body>
