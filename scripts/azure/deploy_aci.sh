@@ -58,7 +58,9 @@ for var_name in "${required_vars[@]}"; do
 done
 
 if az container show --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_GROUP_NAME" >/dev/null 2>&1; then
-  existing_manifest_path="$(mktemp "${TMPDIR:-/tmp}/aci-backup.XXXXXX.yaml")"
+  temp_dir="${TMPDIR:-/tmp}"
+  temp_dir="${temp_dir%/}"
+  existing_manifest_path="$(mktemp "${temp_dir}/aci-backup.XXXXXX")"
   az container export \
     --resource-group "$AZURE_RESOURCE_GROUP" \
     --name "$AZURE_CONTAINER_GROUP_NAME" \
