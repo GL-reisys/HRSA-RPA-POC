@@ -348,20 +348,22 @@ Example format:
     def _build_fallback_analysis(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
         """Build basic analysis when AI service is not available."""
         if validation_errors:
-            status = "FAILED"
-            status_icon = "❌"
-            error_list = "<br>".join([f"• {error}" for error in validation_errors])
-            message = f"<strong>Form Status: Not Ready for Submission</strong> {status_icon}<br><br>Validation issues found:<br>{error_list}<br><br>Please correct these errors before submitting."
+            error_count = len(validation_errors)
+            message = f"<strong>{error_count}</strong> issue{'s' if error_count > 1 else ''} need to be fixed<br><br>"
+            message += "❌ <strong>Fix these issues:</strong><br>"
+            for idx, error in enumerate(validation_errors, 1):
+                message += f"{idx}. {error}<br>"
+            message += "<br>Please correct these errors before submitting."
         else:
-            status = "PASSED"
-            status_icon = "✅"
-            message = f"<strong>Form Status: Ready for Submission</strong> {status_icon}<br><br>All validation checks passed successfully.<br><br>Your SF-424 form is complete and ready for submission."
+            message = "✅ <strong>Ready for submission to Grants.gov</strong><br><br>"
+            message += "All validation checks passed successfully.<br><br>"
+            message += "Your SF-424 form is complete and ready for submission."
         
         return message
     
     def _build_fallback_guidance(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
         """Build basic troubleshooting guidance when AI service is not available."""
         if validation_errors:
-            return "<strong>What to check:</strong><br>• Review each validation error above<br>• Verify all field values match your official records<br>• Ensure there are no typos or extra spaces<br>• Contact your program officer if you need assistance"
+            return "<strong>What to check:</strong><br>&nbsp;&nbsp;&nbsp;• Verify all field values match your official records<br>&nbsp;&nbsp;&nbsp;• Ensure there are no typos or extra spaces<br>&nbsp;&nbsp;&nbsp;• Contact your program officer if you need assistance"
         else:
-            return "Your form is ready for submission to Grants.gov."
+            return ""

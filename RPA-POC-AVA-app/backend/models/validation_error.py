@@ -1,16 +1,30 @@
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
 class ValidationError:
     user_message: str
     ai_context: str
+    field_name: Optional[str] = None
+    page_number: Optional[int] = None
+    field_location: Optional[str] = None
+    current_value: Optional[str] = None
 
 
 class ValidationErrorFactory:
     @staticmethod
-    def _create(user_message: str, ai_context: str) -> ValidationError:
-        return ValidationError(user_message=user_message, ai_context=ai_context)
+    def _create(user_message: str, ai_context: str, field_name: str = None, 
+                page_number: int = None, field_location: str = None, 
+                current_value: str = None) -> ValidationError:
+        return ValidationError(
+            user_message=user_message, 
+            ai_context=ai_context,
+            field_name=field_name,
+            page_number=page_number,
+            field_location=field_location,
+            current_value=current_value
+        )
 
     @staticmethod
     def required_field(field_name: str, field_code: str) -> ValidationError:
@@ -50,8 +64,12 @@ class ValidationErrorFactory:
     @staticmethod
     def uei_not_found(uei: str) -> ValidationError:
         return ValidationErrorFactory._create(
-            "UEI was not found in the organization records.",
+            "UEI was not found. Verify UEI matches your official records.",
             f"UEI lookup failed. UEI not found: {uei}.",
+            field_name="UEI",
+            page_number=1,
+            field_location="Field 8c",
+            current_value=uei
         )
 
     @staticmethod
@@ -59,6 +77,10 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Organization Name does not match the name on file for the UEI provided.",
             f"Organization name mismatch for UEI {uei}. Submitted: {submitted_name}. Expected: {expected_name}.",
+            field_name="Organization Name",
+            page_number=1,
+            field_location="Field 8a",
+            current_value=submitted_name
         )
 
     @staticmethod
@@ -66,20 +88,32 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Funding Opportunity Number was not found.",
             f"Funding Opportunity Number not found: {fon}.",
+            field_name="Funding Opportunity Number",
+            page_number=1,
+            field_location="Field 4",
+            current_value=fon
         )
 
     @staticmethod
-    def type_mismatch_continuation_required(fon: str) -> ValidationError:
+    def type_mismatch_continuation_required(fon: str, application_type: str = "New") -> ValidationError:
         return ValidationErrorFactory._create(
-            "This funding opportunity only accepts continuation applications.",
+            "Change 'Type of Application'. This funding opportunity only accepts continuation applications.",
             f"Application type mismatch for funding opportunity {fon}. Continuation is required.",
+            field_name="Type of Application",
+            page_number=1,
+            field_location="Field 2",
+            current_value=application_type
         )
 
     @staticmethod
     def type_mismatch_new_required(fon: str, application_type: str) -> ValidationError:
         return ValidationErrorFactory._create(
-            "This funding opportunity only accepts new applications.",
+            "Change 'Type of Application'. This funding opportunity only accepts new applications.",
             f"Application type mismatch for funding opportunity {fon}. Received {application_type}; new application required.",
+            field_name="Type of Application",
+            page_number=1,
+            field_location="Field 2",
+            current_value=application_type
         )
 
     @staticmethod
@@ -90,10 +124,14 @@ class ValidationErrorFactory:
         )
 
     @staticmethod
-    def duplicate_application(fon: str) -> ValidationError:
+    def duplicate_application(fon: str, application_type: str = "New") -> ValidationError:
         return ValidationErrorFactory._create(
-            "An application for this funding opportunity already exists for this organization.",
+            "Change 'Type of Application'. An application for this funding opportunity already exists.",
             f"Duplicate application detected for funding opportunity {fon}.",
+            field_name="Type of Application",
+            page_number=1,
+            field_location="Field 2",
+            current_value=application_type
         )
 
     @staticmethod

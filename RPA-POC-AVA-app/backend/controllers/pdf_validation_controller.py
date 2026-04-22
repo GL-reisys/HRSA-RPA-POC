@@ -104,46 +104,51 @@ def analyze_pdf():
         if fon:
             funding_opportunity = validator.db_service.get_funding_cycle_by_code(fon)
         
-        # Build consistent status section
+        # Build structured validation response
         app_type = form_data.get('application_type', 'Not specified')
         grant_number = form_data.get('federal_award_identifier')
         app_type_normalized = validator._normalize_application_type(app_type)
         
         if validation_errors:
-            consistent_section = "<strong>Form Status: Not Ready for Submission to Grants.gov</strong><br><br>"
+            consistent_section = "<strong>Here is a summary:</strong><br><br>"
+            consistent_section += "❌ <strong>Not ready for submission</strong><br>"
+            error_count = len(validation_errors)
+            consistent_section += f"<strong>{error_count}</strong> issue{'s' if error_count > 1 else ''} need to be fixed<br><br>"
             
-            # Add form fields section first
-            consistent_section += "<strong>Form fields:</strong><br>"
-            consistent_section += f"• <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')}<br>"
-            consistent_section += f"• <strong>Funding Opportunity:</strong> {fon or 'Not provided'}<br>"
-            consistent_section += f"• <strong>Application Type:</strong> {app_type}<br>"
+            # Check what passed - Funding Opportunity passed if no FON errors
+            fon_errors = [e for e in validation_errors_obj if 'funding opportunity' in e.user_message.lower()]
+            if not fon_errors and fon:
+                consistent_section += f"✅ <strong>Funding Opportunity</strong><br><br>"
             
-            # Show Grant Number only if NOT "New only" funding opportunity
-            if (grant_number and 
-                app_type_normalized in ['2', '3'] and
-                funding_opportunity and 
-                funding_opportunity.type_of_app_by_fo != 1):
-                consistent_section += f"• <strong>Grant Number:</strong> {grant_number}<br>"
-            
-            consistent_section += "<br>"
-            
-            # Add validation issues after form fields
-            consistent_section += "<strong>Validation issues found:</strong><br>"
-            for error in validation_errors:
-                consistent_section += f"• {error}<br>"
+            # List issues with details
+            consistent_section += "❌ <strong>Fix these issues:</strong><br>"
+            for idx, error_obj in enumerate(validation_errors_obj, 1):
+                consistent_section += f"{idx}. {error_obj.user_message}<br>"
+                
+                # Add page and field location if available
+                if error_obj.page_number and error_obj.field_location:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;• Page {error_obj.page_number}, {error_obj.field_location}<br>"
+                
+                # Add current value if available
+                if error_obj.current_value:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;• Current Value: {error_obj.current_value}<br>"
+                
+                consistent_section += "<br>"
         else:
-            consistent_section = "<strong>Form Status: Ready for Submission to Grants.gov</strong> ✅<br><br>"
+            consistent_section = "<strong>Here is a summary:</strong><br><br>"
+            consistent_section += "✅ <strong>Ready for submission to Grants.gov</strong><br><br>"
             consistent_section += "All validation checks passed:<br>"
-            consistent_section += f"• <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')} — Verified<br>"
-            consistent_section += f"• <strong>Funding Opportunity:</strong> {fon or 'Not provided'} — Entered<br>"
-            consistent_section += f"• <strong>Application Type:</strong> {app_type}<br>"
+            consistent_section += f"✅ <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')}<br>"
+            if fon:
+                consistent_section += f"✅ <strong>Funding Opportunity:</strong> {fon}<br>"
+            consistent_section += f"✅ <strong>Application Type:</strong> {app_type}<br>"
             
             # Show Grant Number only if NOT "New only" funding opportunity
             if (grant_number and 
                 app_type_normalized in ['2', '3'] and
                 funding_opportunity and 
                 funding_opportunity.type_of_app_by_fo != 1):
-                consistent_section += f"• <strong>Grant Number:</strong> {grant_number}<br>"
+                consistent_section += f"✅ <strong>Grant Number:</strong> {grant_number}<br>"
         
         consistent_section += "<br>"
         

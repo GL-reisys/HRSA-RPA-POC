@@ -274,7 +274,7 @@ class SF424Validator:
                         
                         # TypeOfAppByFO = 2 (Continuation only), but application is New (1)
                         if type_of_app_by_fo == 2 and app_type_code == 1:
-                            errors.append(ValidationErrorFactory.type_mismatch_continuation_required(fon))
+                            errors.append(ValidationErrorFactory.type_mismatch_continuation_required(fon, application_type))
                         # TypeOfAppByFO = 1 (New only), but application is NOT New
                         elif type_of_app_by_fo == 1 and app_type_code != 1:
                             app_type_name = "Continuation" if app_type_code == 2 else "Revision" if app_type_code == 3 else "Unknown"
@@ -305,7 +305,8 @@ class SF424Validator:
                         
                         if existing_apps:
                             # Use ValidationErrorFactory (no longer exposes application IDs)
-                            errors.append(ValidationErrorFactory.duplicate_application(fon))
+                            app_type = form_data.get('application_type', 'New')
+                            errors.append(ValidationErrorFactory.duplicate_application(fon, app_type))
                     except Exception as e:
                         # Log error but don't fail validation - duplicate check is supplementary
                         print(f"Warning: Duplicate detection check failed: {str(e)}")
