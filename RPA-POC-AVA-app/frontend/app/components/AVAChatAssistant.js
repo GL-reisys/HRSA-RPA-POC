@@ -12,6 +12,20 @@ import { useDropzone } from 'react-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ChatInterface from './ChatInterface';
 
+async function readJsonOrText(response) {
+  const body = await response.text();
+
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
 export default function AVAChatAssistant() {
   const [file, setFile] = useState(null);
   const [fileId, setFileId] = useState(null);
@@ -51,12 +65,21 @@ export default function AVAChatAssistant() {
         body: formData,
       });
 
+      const uploadPayload = await readJsonOrText(uploadResponse);
+
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.error || 'Upload failed');
+        const message =
+          (uploadPayload && typeof uploadPayload === 'object' && uploadPayload.error) ||
+          (typeof uploadPayload === 'string' && uploadPayload) ||
+          'Upload failed';
+        throw new Error(message);
       }
 
-      const uploadResult = await uploadResponse.json();
+      if (!uploadPayload || typeof uploadPayload !== 'object') {
+        throw new Error('Upload returned an unexpected response.');
+      }
+
+      const uploadResult = uploadPayload;
       setFileId(uploadResult.file_id);
       
       setAnalyzing(true);
@@ -73,12 +96,21 @@ export default function AVAChatAssistant() {
         }),
       });
 
+      const analyzePayload = await readJsonOrText(analyzeResponse);
+
       if (!analyzeResponse.ok) {
-        const errorData = await analyzeResponse.json();
-        throw new Error(errorData.error || 'Analysis failed');
+        const message =
+          (analyzePayload && typeof analyzePayload === 'object' && analyzePayload.error) ||
+          (typeof analyzePayload === 'string' && analyzePayload) ||
+          'Analysis failed';
+        throw new Error(message);
       }
 
-      const analyzeResult = await analyzeResponse.json();
+      if (!analyzePayload || typeof analyzePayload !== 'object') {
+        throw new Error('Analysis returned an unexpected response.');
+      }
+
+      const analyzeResult = analyzePayload;
       
       setFormData(analyzeResult.form_data);
       setValidationErrors(analyzeResult.validation_errors || []);

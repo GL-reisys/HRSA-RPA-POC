@@ -16,6 +16,20 @@ import SendIcon from '@mui/icons-material/Send';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DescriptionIcon from '@mui/icons-material/Description';
 
+async function readJsonOrText(response) {
+  const body = await response.text();
+
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
 export default function ChatInterface({ 
   fileId, 
   fileName, 
@@ -75,11 +89,21 @@ export default function ChatInterface({
         }),
       });
 
+      const payload = await readJsonOrText(response);
+
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const message =
+          (payload && typeof payload === 'object' && payload.error) ||
+          (typeof payload === 'string' && payload) ||
+          'Failed to send message';
+        throw new Error(message);
       }
 
-      const result = await response.json();
+      if (!payload || typeof payload !== 'object') {
+        throw new Error('Chat returned an unexpected response.');
+      }
+
+      const result = payload;
 
       const assistantMessage = {
         role: 'assistant',
