@@ -181,35 +181,47 @@ class AIService:
         """Build system prompt with instructions for AVA."""
         prompt = """You are AVA (Application Validation Assistant), a helpful assistant that validates SF-424 application forms. Your role is to review the PDF form data, inform users whether their form is ready for submission, and help troubleshoot issues with the form data.
 
+DATA SOURCE:
+The form data you're analyzing has been extracted from an uploaded PDF file (SF-424 form). All field values, validation results, and information you reference come directly from this PDF document that the user submitted.
+
+YOUR ROLE:
+Review the PDF form data, inform users whether their form is ready for submission, and help troubleshoot issues with the form data.
+
 YOUR SCOPE:
 - Review form fields and validation results
 - Identify which fields have errors (UEI, EIN, Organization, etc.)
+- Analyze form validation results and explain the ROOT CAUSE of each error
+- Identify which specific fields have issues (UEI, Application Type, Funding Opportunity, etc.)
+- Explain WHY each field is incorrect (wrong format, doesn't match requirements, not found in system, etc.)
 - Confirm if the form is ready for submission or needs corrections
 - Answer questions about what's on the form
-- Provide troubleshooting guidance focused on the FORM DATA (e.g., check for typos, verify field matches, ensure format is correct)
-- DO NOT provide guidance about external systems (SAM.gov, Grants.gov, etc.)
-- DO NOT offer to help with registration processes outside the form
+- Provide clear, actionable guidance focused on the FORM DATA
 - Keep advice focused on what the user can verify or correct in their form
 
-CRITICAL FORMATTING REQUIREMENTS:
-1. Keep responses SHORT - aim for 100-150 words maximum
-2. Use HTML line breaks: <br><br> for paragraph breaks (NOT \\n)
+CRITICAL FORMATTING REQUIREMENTS - ALWAYS USE HTML:
+1. Keep responses CONCISE and FOCUSED on explaining errors clearly
+2. ALWAYS use HTML line breaks: <br><br> for paragraph breaks (NEVER use \\n or plain line breaks)
 3. Use <br> for single line breaks within lists
-4. Format lists as: <br>• Item one<br>• Item two<br>• Item three
+4. Format ALL lists with HTML: <br>• Item one<br>• Item two<br>• Item three
 5. Add <br><br> between major sections
-6. Be direct and actionable
-7. Use <strong>bold</strong> for field names and status
+6. Be direct and explain the ROOT CAUSE (e.g., "This UEI does not exist in SAM.gov registry" not just "UEI is wrong")
+7. Use <strong>bold</strong> for field names and important values
+8. Structure error explanations clearly: What's wrong → Why it's wrong → How to fix it
+9. NEVER use numbered lists (1. 2. 3.) - use <br>• instead
+10. NEVER use markdown links [text](url) - use plain text or HTML links if needed
 
 EXAMPLE RESPONSES:
 
-For FAILED validation:
-<strong>Form Status: Not Ready for Submission to Grants.gov</strong><br><br>Validation issues found:<br>• <strong>UEI:</strong> E9358A5CI103 - Not found in system<br>• <strong>Organization:</strong> Testing INC - Does not match records<br><br><strong>What to check:</strong><br>• Verify the UEI is entered correctly (no typos or extra spaces)<br>• Ensure organization name matches exactly as registered<br>• Check that all required fields are filled out
+For FAILED validation - explain the ROOT CAUSE clearly:
+❌ <strong>Not ready for submission</strong><br><br><strong>Verify these fields:</strong><br>&nbsp;&nbsp;&nbsp;• Uei<br>&nbsp;&nbsp;&nbsp;• Application Type<br><br><strong>Issues found:</strong> 2<br><br>❌ <strong>Fix these issues:</strong><br><br>1. <strong>UEI</strong> is incorrect.<br>&nbsp;&nbsp;&nbsp;• Kindly update <strong>Page 1, Field 8c</strong><br>&nbsp;&nbsp;&nbsp;• <strong>Current Value:</strong> Z2ZZAAQ62ON8<br>&nbsp;&nbsp;&nbsp;• <strong>Root Cause:</strong> This UEI does not exist in the SAM.gov registry or is inactive<br>&nbsp;&nbsp;&nbsp;• Verify there are no typos or extra spaces in the UEI entered<br><br>2. <strong>Type of Application</strong> is incorrect.<br>&nbsp;&nbsp;&nbsp;• Kindly update <strong>Page 1, Field 2</strong><br>&nbsp;&nbsp;&nbsp;• <strong>Current Value:</strong> New<br>&nbsp;&nbsp;&nbsp;• <strong>Root Cause:</strong> This funding opportunity (HRSA-26-094) only accepts Continuation applications, not New applications<br>&nbsp;&nbsp;&nbsp;• Change the Application Type to Continuation
 
 For PASSED validation:
-<strong>Form Status: Ready for Submission to Grants.gov</strong> ✅<br><br>All validation checks passed:<br>• UEI verified<br>• EIN verified<br>• Organization verified<br><br>Your SF-424 form is complete and ready for submission.
+✅ <strong>Ready for submission to Grants.gov</strong><br><br>All validation checks passed:<br>• <strong>UEI:</strong> Verified in SAM.gov<br>• <strong>Application Type:</strong> Matches funding opportunity requirements<br>• <strong>Funding Opportunity:</strong> Valid<br><br>Your SF-424 form is complete and ready for submission.
 
-For follow-up questions:
-Keep answers brief and specific to the form data. Example:<br><br>The <strong>Project Title</strong> in your form is: "Community Health Initiative"<br><br>This appears in Section 11 of the SF-424 form."""
+For follow-up questions (ALWAYS USE HTML - bullets MUST start on new line):
+You can find your <strong>UEI (Unique Entity Identifier)</strong> in the SAM.gov registry. To verify your UEI, follow these steps:<br><br>• Go to the SAM.gov website<br>• Use the search function to enter your UEI: <strong>Z2ZZAAQ62ON8</strong><br>• Check if the UEI is currently active and registered<br><br>If you have not registered for a UEI, you may need to register through SAM.gov. Ensure there are no typographical errors when entering the UEI in your SF-424 form.
+
+CRITICAL: When introducing a list, ALWAYS add <br><br> BEFORE the first bullet point. Never put a bullet immediately after text without a line break."""
 
         return prompt
     
@@ -220,8 +232,7 @@ Keep answers brief and specific to the form data. Example:<br><br>The <strong>Pr
 Rules:
 - DO NOT include status headers or list validation errors
 - Start with actionable steps (50-100 words)
-- Focus on form data corrections (typos, field matching, format)
-- Use HTML: <br> for line breaks, <strong> for emphasis
+- Focus on form data corrections (typos, field matching, format)- Use HTML: <br> for line breaks, <strong> for emphasis
 
 Example format:
 
@@ -234,24 +245,84 @@ Example format:
         form_data: Dict[str, Any], 
         validation_errors: List[str]
     ) -> str:
-        """Build concise form context summary for AI analysis."""
+        """Build comprehensive form context summary for AI analysis with all form fields."""
         lines = []
-        lines.append("Form data to confirm:")
-        lines.append(f"• UEI: {form_data.get('samuei') or 'Not provided'}")
-        lines.append(f"• Organization: {form_data.get('organization_name') or 'Not provided'}")
+        lines.append("Complete SF-424 Form Data:")
+        lines.append("")
         
-        if form_data.get('funding_opportunity_number'):
-            lines.append(f"• Funding Opportunity: {form_data.get('funding_opportunity_number')}")
+        field_labels = {
+            'submission_type': 'Submission Type',
+            'application_type': 'Application Type',
+            'revision_type': 'Revision Type',
+            'revision_other_specify': 'Revision Other',
+            'date_received': 'Date Received',
+            'applicant_id': 'Applicant ID',
+            'federal_entity_identifier': 'Federal Entity Identifier',
+            'federal_award_identifier': 'Federal Award Identifier (Grant Number)',
+            'state_receive_date': 'State Receive Date',
+            'state_application_id': 'State Application ID',
+            'organization_name': 'Organization Name',
+            'employer_taxpayer_identification_number': 'EIN',
+            'samuei': 'UEI',
+            'applicant_street1': 'Street Address 1',
+            'applicant_street2': 'Street Address 2',
+            'applicant_city': 'City',
+            'applicant_state': 'State',
+            'applicant_zip_postal_code': 'ZIP Code',
+            'applicant_country': 'Country',
+            'department_name': 'Department',
+            'division_name': 'Division',
+            'contact_person_first_name': 'Contact First Name',
+            'contact_person_last_name': 'Contact Last Name',
+            'title': 'Contact Title',
+            'organization_affiliation': 'Organization Affiliation',
+            'phone_number': 'Phone',
+            'fax': 'Fax',
+            'email': 'Email',
+            'applicant_type_code1': 'Applicant Type 1',
+            'applicant_type_code2': 'Applicant Type 2',
+            'applicant_type_code3': 'Applicant Type 3',
+            'applicant_type_other_specify': 'Applicant Type Other',
+            'agency_name': 'Agency',
+            'cfda_number': 'CFDA Number',
+            'cfda_program_title': 'CFDA Program Title',
+            'funding_opportunity_number': 'Funding Opportunity Number',
+            'funding_opportunity_title': 'Funding Opportunity Title',
+            'competition_identification_number': 'Competition ID',
+            'competition_identification_title': 'Competition Title',
+            'project_title': 'Project Title',
+            'congressional_district_applicant': 'Congressional District (Applicant)',
+            'congressional_district_program_project': 'Congressional District (Project)',
+            'project_start_date': 'Project Start Date',
+            'project_end_date': 'Project End Date',
+            'federal_estimated_funding': 'Federal Funding',
+            'applicant_estimated_funding': 'Applicant Funding',
+            'state_estimated_funding': 'State Funding',
+            'local_estimated_funding': 'Local Funding',
+            'other_estimated_funding': 'Other Funding',
+            'program_income_estimated_funding': 'Program Income',
+            'total_estimated_funding': 'Total Funding',
+            'state_review': 'State Review',
+            'state_review_available_date': 'State Review Date',
+            'delinquent_federal_debt': 'Delinquent Federal Debt',
+            'certification_agree': 'Certification Agreed',
+            'authorized_representative_first_name': 'Auth Rep First Name',
+            'authorized_representative_last_name': 'Auth Rep Last Name',
+            'authorized_representative_title': 'Auth Rep Title',
+            'authorized_representative_phone_number': 'Auth Rep Phone',
+            'authorized_representative_email': 'Auth Rep Email',
+            'authorized_representative_fax': 'Auth Rep Fax',
+            'aor_signature': 'AOR Signature',
+            'date_signed': 'Date Signed'
+        }
         
-        if form_data.get('submission_type'):
-            submission_map = {'1': 'New', '2': 'Changed/Corrected'}
-            submission_text = submission_map.get(form_data.get('submission_type'), form_data.get('submission_type'))
-            lines.append(f"• Submission Type: {submission_text}")
-        
-        if form_data.get('application_type'):
-            app_type_map = {'1': 'New', '2': 'Continuation', '3': 'Revision'}
-            app_type_text = app_type_map.get(form_data.get('application_type'), form_data.get('application_type'))
-            lines.append(f"• Application Type: {app_type_text}")
+        for field_key, field_label in field_labels.items():
+            value = form_data.get(field_key)
+            if value is not None and value != '':
+                if isinstance(value, float) and field_key.endswith('_funding'):
+                    lines.append(f"• {field_label}: ${value:,.2f}")
+                else:
+                    lines.append(f"• {field_label}: {value}")
         
         lines.append("")
         
@@ -263,12 +334,6 @@ Example format:
         else:
             lines.append("Validation Status: PASSED")
             lines.append("All validation checks passed successfully.")
-        
-        lines.append("")
-        lines.append("What to check:")
-        lines.append("• Verify the funding opportunity code exactly matches the announcement (case, hyphens, spaces — no trailing spaces)")
-        lines.append("• Ensure you entered the announcement/code field (not only the title) or re-select the opportunity from the form's list/dropdown if available")
-        lines.append("• If the code is correct and still fails, confirm you're using the current solicitation number with your program contact or support channel")
         
         return "\n".join(lines)
     
@@ -321,7 +386,7 @@ Example format:
         return "\n".join(relevant_fields) if relevant_fields else ""
     
     def _build_troubleshooting_context(self, form_data: Dict[str, Any], validation_errors: List[str]) -> str:
-        """Build context for troubleshooting guidance generation."""
+        """Build context for troubleshooting guidance generation with complete form data."""
         lines = []
         
         if validation_errors:
@@ -332,13 +397,81 @@ Example format:
             lines.append("All validation checks passed.")
         
         lines.append("")
-        lines.append("Form context:")
-        lines.append(f"- UEI: {form_data.get('samuei', 'Not provided')}")
-        lines.append(f"- Funding Opportunity: {form_data.get('funding_opportunity_number', 'Not provided')}")
-        lines.append(f"- Application Type: {form_data.get('application_type', 'Not provided')}")
+        lines.append("Complete Form Data:")
         
-        if form_data.get('federal_award_identifier'):
-            lines.append(f"- Grant Number: {form_data.get('federal_award_identifier')}")
+        field_labels = {
+            'submission_type': 'Submission Type',
+            'application_type': 'Application Type',
+            'revision_type': 'Revision Type',
+            'revision_other_specify': 'Revision Other',
+            'date_received': 'Date Received',
+            'applicant_id': 'Applicant ID',
+            'federal_entity_identifier': 'Federal Entity Identifier',
+            'federal_award_identifier': 'Federal Award Identifier (Grant Number)',
+            'state_receive_date': 'State Receive Date',
+            'state_application_id': 'State Application ID',
+            'organization_name': 'Organization Name',
+            'employer_taxpayer_identification_number': 'EIN',
+            'samuei': 'UEI',
+            'applicant_street1': 'Street Address 1',
+            'applicant_street2': 'Street Address 2',
+            'applicant_city': 'City',
+            'applicant_state': 'State',
+            'applicant_zip_postal_code': 'ZIP Code',
+            'applicant_country': 'Country',
+            'department_name': 'Department',
+            'division_name': 'Division',
+            'contact_person_first_name': 'Contact First Name',
+            'contact_person_last_name': 'Contact Last Name',
+            'title': 'Contact Title',
+            'organization_affiliation': 'Organization Affiliation',
+            'phone_number': 'Phone',
+            'fax': 'Fax',
+            'email': 'Email',
+            'applicant_type_code1': 'Applicant Type 1',
+            'applicant_type_code2': 'Applicant Type 2',
+            'applicant_type_code3': 'Applicant Type 3',
+            'applicant_type_other_specify': 'Applicant Type Other',
+            'agency_name': 'Agency',
+            'cfda_number': 'CFDA Number',
+            'cfda_program_title': 'CFDA Program Title',
+            'funding_opportunity_number': 'Funding Opportunity Number',
+            'funding_opportunity_title': 'Funding Opportunity Title',
+            'competition_identification_number': 'Competition ID',
+            'competition_identification_title': 'Competition Title',
+            'project_title': 'Project Title',
+            'congressional_district_applicant': 'Congressional District (Applicant)',
+            'congressional_district_program_project': 'Congressional District (Project)',
+            'project_start_date': 'Project Start Date',
+            'project_end_date': 'Project End Date',
+            'federal_estimated_funding': 'Federal Funding',
+            'applicant_estimated_funding': 'Applicant Funding',
+            'state_estimated_funding': 'State Funding',
+            'local_estimated_funding': 'Local Funding',
+            'other_estimated_funding': 'Other Funding',
+            'program_income_estimated_funding': 'Program Income',
+            'total_estimated_funding': 'Total Funding',
+            'state_review': 'State Review',
+            'state_review_available_date': 'State Review Date',
+            'delinquent_federal_debt': 'Delinquent Federal Debt',
+            'certification_agree': 'Certification Agreed',
+            'authorized_representative_first_name': 'Auth Rep First Name',
+            'authorized_representative_last_name': 'Auth Rep Last Name',
+            'authorized_representative_title': 'Auth Rep Title',
+            'authorized_representative_phone_number': 'Auth Rep Phone',
+            'authorized_representative_email': 'Auth Rep Email',
+            'authorized_representative_fax': 'Auth Rep Fax',
+            'aor_signature': 'AOR Signature',
+            'date_signed': 'Date Signed'
+        }
+        
+        for field_key, field_label in field_labels.items():
+            value = form_data.get(field_key)
+            if value is not None and value != '':
+                if isinstance(value, float) and field_key.endswith('_funding'):
+                    lines.append(f"- {field_label}: ${value:,.2f}")
+                else:
+                    lines.append(f"- {field_label}: {value}")
         
         lines.append("")
         lines.append("Generate concise troubleshooting guidance.")

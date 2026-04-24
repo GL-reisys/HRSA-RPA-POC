@@ -8,6 +8,9 @@ from services.ai_service import AIService
 from services.session_manager import SessionManager
 from datetime import datetime
 
+# Get backend URL from environment or use default
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
+
 pdf_bp = Blueprint('pdf', __name__)
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'uploads')
@@ -110,28 +113,89 @@ def analyze_pdf():
         app_type_normalized = validator._normalize_application_type(app_type)
         
         if validation_errors:
-            consistent_section = "<strong>Here is a summary:</strong><br><br>"
-            consistent_section += "❌ <strong>Not ready for submission</strong><br>"
-            error_count = len(validation_errors)
-            consistent_section += f"<strong>{error_count}</strong> issue{'s' if error_count > 1 else ''} need to be fixed<br><br>"
+            consistent_section = "<strong>Here is a quick summary:</strong><br><br>"
+            consistent_section += "❌ <strong>Not ready for submission</strong><br><br>"
             
-            # Check what passed - Funding Opportunity passed if no FON errors
-            fon_errors = [e for e in validation_errors_obj if 'funding opportunity' in e.user_message.lower()]
-            if not fon_errors and fon:
-                consistent_section += f"✅ <strong>Funding Opportunity</strong><br><br>"
+            # Determine which fields have errors by checking field_name
+            error_field_names = set()
+            for error_obj in validation_errors_obj:
+                if error_obj.field_name:
+                    error_field_names.add(error_obj.field_name.lower())
             
-            # List issues with details
-            consistent_section += "❌ <strong>Fix these issues:</strong><br>"
+            # Define all major fields that are validated with their form data keys
+            all_fields = [
+                ('Organization Name', 'organization_name'),
+                ('UEI', 'samuei'),
+                ('EIN', 'employer_taxpayer_identification_number'),
+                ('Application Type', 'application_type'),
+                ('Funding Opportunity Number', 'funding_opportunity_number'),
+                ('Project Title', 'project_title'),
+                ('Contact Email', 'email'),
+                ('Contact Phone', 'phone_number'),
+            ]
+            
+            # Show fields that passed validation with green checkmarks
+            passed_fields = []
+            for field_name, form_key in all_fields:
+                # Check if field has value and no errors
+                if form_data.get(form_key) and field_name.lower() not in error_field_names:
+                    passed_fields.append(field_name)
+            
+            if passed_fields:
+                consistent_section += "<strong>Fields validated successfully:</strong><br>"
+                for field_name in passed_fields:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;✅ {field_name}<br>"
+                consistent_section += "<br>"
+            
+            # Show which fields need fixing (in same order as errors)
+            consistent_section += "<strong>Fix the below issues:</strong><br>"
+            field_images_to_check = []
+            seen_fields = set()
+            for error_obj in validation_errors_obj:
+                if error_obj.image_path:
+                    # Extract field name from image path
+                    field_name = error_obj.image_path.split('/')[-1].replace('_field.png', '').replace('_', ' ').title()
+                    # Keep UEI and EIN uppercase
+                    field_name = field_name.replace('Uei', 'UEI').replace('Ein', 'EIN')
+                    # Avoid duplicates while maintaining order
+                    if field_name not in seen_fields:
+                        field_images_to_check.append(field_name)
+                        seen_fields.add(field_name)
+            
+            for field in field_images_to_check:
+                consistent_section += f"&nbsp;&nbsp;&nbsp;❌ {field}<br>"
+            
+            consistent_section += "<br>"
             for idx, error_obj in enumerate(validation_errors_obj, 1):
-                consistent_section += f"{idx}. {error_obj.user_message}<br>"
+                # Make field name bold in the message
+                message = error_obj.user_message
+                if error_obj.field_name:
+                    message = message.replace(error_obj.field_name, f"<strong>{error_obj.field_name}</strong>")
+                consistent_section += f"{idx}. {message}<br>"
                 
-                # Add page and field location if available
-                if error_obj.page_number and error_obj.field_location:
-                    consistent_section += f"&nbsp;&nbsp;&nbsp;• Page {error_obj.page_number}, {error_obj.field_location}<br>"
+                # Add page and field location if available (make Page X, Field Y bold)
+                if error_obj.field_location:
+                    # Extract and bold Page X, Field Y pattern
+                    import re
+                    location_text = error_obj.field_location
+                    # Bold "Page X, Field Y" part
+                    location_text = re.sub(r'(Page \d+, Field \w+)', r'<strong>\1</strong>', location_text)
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;• {location_text}"
+                    
+                    # Add image if available (convert to absolute URL and make clickable)
+                    if error_obj.image_path:
+                        absolute_image_url = f"{BACKEND_URL}{error_obj.image_path}"
+                        consistent_section += f'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{absolute_image_url}" target="_blank"><img src="{absolute_image_url}" alt="{error_obj.field_name} field" style="max-width: 500px; border: 1px solid #ddd; margin-top: 5px; border-radius: 4px; cursor: pointer;" title="Click to open full size"></a>'
+                    
+                    consistent_section += "<br>"
                 
-                # Add current value if available
+                # Add current value if available (bold)
                 if error_obj.current_value:
-                    consistent_section += f"&nbsp;&nbsp;&nbsp;• Current Value: {error_obj.current_value}<br>"
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;• <strong>Current Value:</strong> {error_obj.current_value}<br>"
+                
+                # Add field-specific guidance if available
+                if error_obj.guidance:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;{error_obj.guidance}<br>"
                 
                 consistent_section += "<br>"
         else:
@@ -150,14 +214,10 @@ def analyze_pdf():
                 funding_opportunity.type_of_app_by_fo != 1):
                 consistent_section += f"✅ <strong>Grant Number:</strong> {grant_number}<br>"
         
-        consistent_section += "<br>"
-        
-        # Get AI-generated troubleshooting guidance (use AI context messages)
-        import asyncio
-        ai_guidance = asyncio.run(ai_service.get_troubleshooting_guidance(form_data, validation_errors_ai))
-        
-        # Combine consistent section + AI guidance
-        ai_response = consistent_section + ai_guidance
+        # No AI-generated guidance needed anymore
+        # When validation fails: guidance is already embedded in each error
+        # When validation passes: no additional guidance needed
+        ai_response = consistent_section
         
         session_manager.save_session(file_id, {
             'file_name': data.get('file_name', 'unknown.pdf'),
