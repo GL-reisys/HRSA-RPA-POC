@@ -52,6 +52,7 @@ export default function ChatInterface({
   });
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,7 +60,14 @@ export default function ChatInterface({
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatHistory]);
+    // Restore focus after scroll and state update
+    if (!sending) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [chatHistory, sending]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || sending) return;
@@ -307,6 +315,7 @@ export default function ChatInterface({
               disabled={sending}
               variant="outlined"
               size="small"
+              inputRef={inputRef}
               sx={{ backgroundColor: '#fff' }}
             />
             <Button
