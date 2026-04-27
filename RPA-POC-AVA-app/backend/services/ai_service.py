@@ -8,6 +8,77 @@ class AIService:
     Based on C# AIServiceHelper.cs
     """
     
+    # Token limits for different completion types
+    MAX_TOKENS_TROUBLESHOOTING = 1500
+    MAX_TOKENS_CHAT = 2000
+    
+    # Field labels mapping for form data display
+    FIELD_LABELS = {
+        'submission_type': 'Submission Type',
+        'application_type': 'Application Type',
+        'revision_type': 'Revision Type',
+        'revision_other_specify': 'Revision Other',
+        'date_received': 'Date Received',
+        'applicant_id': 'Applicant ID',
+        'federal_entity_identifier': 'Federal Entity Identifier',
+        'federal_award_identifier': 'Federal Award Identifier (Grant Number)',
+        'state_receive_date': 'State Receive Date',
+        'state_application_id': 'State Application ID',
+        'organization_name': 'Organization Name',
+        'employer_taxpayer_identification_number': 'EIN',
+        'samuei': 'UEI',
+        'applicant_street1': 'Street Address 1',
+        'applicant_street2': 'Street Address 2',
+        'applicant_city': 'City',
+        'applicant_state': 'State',
+        'applicant_zip_postal_code': 'ZIP Code',
+        'applicant_country': 'Country',
+        'department_name': 'Department',
+        'division_name': 'Division',
+        'contact_person_first_name': 'Contact First Name',
+        'contact_person_last_name': 'Contact Last Name',
+        'title': 'Contact Title',
+        'organization_affiliation': 'Organization Affiliation',
+        'phone_number': 'Phone',
+        'fax': 'Fax',
+        'email': 'Email',
+        'applicant_type_code1': 'Applicant Type 1',
+        'applicant_type_code2': 'Applicant Type 2',
+        'applicant_type_code3': 'Applicant Type 3',
+        'applicant_type_other_specify': 'Applicant Type Other',
+        'agency_name': 'Agency',
+        'cfda_number': 'CFDA Number',
+        'cfda_program_title': 'CFDA Program Title',
+        'funding_opportunity_number': 'Funding Opportunity Number',
+        'funding_opportunity_title': 'Funding Opportunity Title',
+        'competition_identification_number': 'Competition ID',
+        'competition_identification_title': 'Competition Title',
+        'project_title': 'Project Title',
+        'congressional_district_applicant': 'Congressional District (Applicant)',
+        'congressional_district_program_project': 'Congressional District (Project)',
+        'project_start_date': 'Project Start Date',
+        'project_end_date': 'Project End Date',
+        'federal_estimated_funding': 'Federal Funding',
+        'applicant_estimated_funding': 'Applicant Funding',
+        'state_estimated_funding': 'State Funding',
+        'local_estimated_funding': 'Local Funding',
+        'other_estimated_funding': 'Other Funding',
+        'program_income_estimated_funding': 'Program Income',
+        'total_estimated_funding': 'Total Funding',
+        'state_review': 'State Review',
+        'state_review_available_date': 'State Review Date',
+        'delinquent_federal_debt': 'Delinquent Federal Debt',
+        'certification_agree': 'Certification Agreed',
+        'authorized_representative_first_name': 'Auth Rep First Name',
+        'authorized_representative_last_name': 'Auth Rep Last Name',
+        'authorized_representative_title': 'Auth Rep Title',
+        'authorized_representative_phone_number': 'Auth Rep Phone',
+        'authorized_representative_email': 'Auth Rep Email',
+        'authorized_representative_fax': 'Auth Rep Fax',
+        'aor_signature': 'AOR Signature',
+        'date_signed': 'Date Signed'
+    }
+    
     def __init__(self):
         """Initialize Azure OpenAI client with environment variables"""
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -106,7 +177,7 @@ class AIService:
             response = self.client.chat.completions.create(
                 model=self.deployment_name,
                 messages=messages,
-                max_completion_tokens=1500
+                max_completion_tokens=self.MAX_TOKENS_TROUBLESHOOTING
             )
             
             ai_response = response.choices[0].message.content
@@ -177,7 +248,7 @@ class AIService:
             response = self.client.chat.completions.create(
                 model=self.deployment_name,
                 messages=messages,
-                max_completion_tokens=2000
+                max_completion_tokens=self.MAX_TOKENS_CHAT
             )
             
             ai_response = response.choices[0].message.content
@@ -251,7 +322,6 @@ ABSOLUTELY FORBIDDEN - DO NOT INCLUDE:
 ❌ Any status headers or labels
 ❌ Any field lists before the guidance
 ❌ Any numbered errors (1. 2. 3.)
-❌ Any ❌ or ✅ symbols
 ❌ ANY intro text like "Verify these steps to fix..." or "Follow these steps..." or "To resolve..."
 ❌ ANY explanatory sentences before bullets whatsoever
 ❌ "To resolve the [error], please follow these steps:"
@@ -295,73 +365,7 @@ Example WRONG response #3 (validation structure):
         lines.append("Complete SF-424 Form Data:")
         lines.append("")
         
-        field_labels = {
-            'submission_type': 'Submission Type',
-            'application_type': 'Application Type',
-            'revision_type': 'Revision Type',
-            'revision_other_specify': 'Revision Other',
-            'date_received': 'Date Received',
-            'applicant_id': 'Applicant ID',
-            'federal_entity_identifier': 'Federal Entity Identifier',
-            'federal_award_identifier': 'Federal Award Identifier (Grant Number)',
-            'state_receive_date': 'State Receive Date',
-            'state_application_id': 'State Application ID',
-            'organization_name': 'Organization Name',
-            'employer_taxpayer_identification_number': 'EIN',
-            'samuei': 'UEI',
-            'applicant_street1': 'Street Address 1',
-            'applicant_street2': 'Street Address 2',
-            'applicant_city': 'City',
-            'applicant_state': 'State',
-            'applicant_zip_postal_code': 'ZIP Code',
-            'applicant_country': 'Country',
-            'department_name': 'Department',
-            'division_name': 'Division',
-            'contact_person_first_name': 'Contact First Name',
-            'contact_person_last_name': 'Contact Last Name',
-            'title': 'Contact Title',
-            'organization_affiliation': 'Organization Affiliation',
-            'phone_number': 'Phone',
-            'fax': 'Fax',
-            'email': 'Email',
-            'applicant_type_code1': 'Applicant Type 1',
-            'applicant_type_code2': 'Applicant Type 2',
-            'applicant_type_code3': 'Applicant Type 3',
-            'applicant_type_other_specify': 'Applicant Type Other',
-            'agency_name': 'Agency',
-            'cfda_number': 'CFDA Number',
-            'cfda_program_title': 'CFDA Program Title',
-            'funding_opportunity_number': 'Funding Opportunity Number',
-            'funding_opportunity_title': 'Funding Opportunity Title',
-            'competition_identification_number': 'Competition ID',
-            'competition_identification_title': 'Competition Title',
-            'project_title': 'Project Title',
-            'congressional_district_applicant': 'Congressional District (Applicant)',
-            'congressional_district_program_project': 'Congressional District (Project)',
-            'project_start_date': 'Project Start Date',
-            'project_end_date': 'Project End Date',
-            'federal_estimated_funding': 'Federal Funding',
-            'applicant_estimated_funding': 'Applicant Funding',
-            'state_estimated_funding': 'State Funding',
-            'local_estimated_funding': 'Local Funding',
-            'other_estimated_funding': 'Other Funding',
-            'program_income_estimated_funding': 'Program Income',
-            'total_estimated_funding': 'Total Funding',
-            'state_review': 'State Review',
-            'state_review_available_date': 'State Review Date',
-            'delinquent_federal_debt': 'Delinquent Federal Debt',
-            'certification_agree': 'Certification Agreed',
-            'authorized_representative_first_name': 'Auth Rep First Name',
-            'authorized_representative_last_name': 'Auth Rep Last Name',
-            'authorized_representative_title': 'Auth Rep Title',
-            'authorized_representative_phone_number': 'Auth Rep Phone',
-            'authorized_representative_email': 'Auth Rep Email',
-            'authorized_representative_fax': 'Auth Rep Fax',
-            'aor_signature': 'AOR Signature',
-            'date_signed': 'Date Signed'
-        }
-        
-        for field_key, field_label in field_labels.items():
+        for field_key, field_label in self.FIELD_LABELS.items():
             value = form_data.get(field_key)
             if value is not None and value != '':
                 if isinstance(value, float) and field_key.endswith('_funding'):
@@ -425,7 +429,7 @@ Example WRONG response #3 (validation structure):
                     field_value = field_func()
                     if field_value:
                         relevant_fields.append(field_value)
-                except:
+                except Exception:
                     pass
         
         return "\n".join(relevant_fields) if relevant_fields else ""
@@ -444,73 +448,7 @@ Example WRONG response #3 (validation structure):
         lines.append("")
         lines.append("Complete Form Data:")
         
-        field_labels = {
-            'submission_type': 'Submission Type',
-            'application_type': 'Application Type',
-            'revision_type': 'Revision Type',
-            'revision_other_specify': 'Revision Other',
-            'date_received': 'Date Received',
-            'applicant_id': 'Applicant ID',
-            'federal_entity_identifier': 'Federal Entity Identifier',
-            'federal_award_identifier': 'Federal Award Identifier (Grant Number)',
-            'state_receive_date': 'State Receive Date',
-            'state_application_id': 'State Application ID',
-            'organization_name': 'Organization Name',
-            'employer_taxpayer_identification_number': 'EIN',
-            'samuei': 'UEI',
-            'applicant_street1': 'Street Address 1',
-            'applicant_street2': 'Street Address 2',
-            'applicant_city': 'City',
-            'applicant_state': 'State',
-            'applicant_zip_postal_code': 'ZIP Code',
-            'applicant_country': 'Country',
-            'department_name': 'Department',
-            'division_name': 'Division',
-            'contact_person_first_name': 'Contact First Name',
-            'contact_person_last_name': 'Contact Last Name',
-            'title': 'Contact Title',
-            'organization_affiliation': 'Organization Affiliation',
-            'phone_number': 'Phone',
-            'fax': 'Fax',
-            'email': 'Email',
-            'applicant_type_code1': 'Applicant Type 1',
-            'applicant_type_code2': 'Applicant Type 2',
-            'applicant_type_code3': 'Applicant Type 3',
-            'applicant_type_other_specify': 'Applicant Type Other',
-            'agency_name': 'Agency',
-            'cfda_number': 'CFDA Number',
-            'cfda_program_title': 'CFDA Program Title',
-            'funding_opportunity_number': 'Funding Opportunity Number',
-            'funding_opportunity_title': 'Funding Opportunity Title',
-            'competition_identification_number': 'Competition ID',
-            'competition_identification_title': 'Competition Title',
-            'project_title': 'Project Title',
-            'congressional_district_applicant': 'Congressional District (Applicant)',
-            'congressional_district_program_project': 'Congressional District (Project)',
-            'project_start_date': 'Project Start Date',
-            'project_end_date': 'Project End Date',
-            'federal_estimated_funding': 'Federal Funding',
-            'applicant_estimated_funding': 'Applicant Funding',
-            'state_estimated_funding': 'State Funding',
-            'local_estimated_funding': 'Local Funding',
-            'other_estimated_funding': 'Other Funding',
-            'program_income_estimated_funding': 'Program Income',
-            'total_estimated_funding': 'Total Funding',
-            'state_review': 'State Review',
-            'state_review_available_date': 'State Review Date',
-            'delinquent_federal_debt': 'Delinquent Federal Debt',
-            'certification_agree': 'Certification Agreed',
-            'authorized_representative_first_name': 'Auth Rep First Name',
-            'authorized_representative_last_name': 'Auth Rep Last Name',
-            'authorized_representative_title': 'Auth Rep Title',
-            'authorized_representative_phone_number': 'Auth Rep Phone',
-            'authorized_representative_email': 'Auth Rep Email',
-            'authorized_representative_fax': 'Auth Rep Fax',
-            'aor_signature': 'AOR Signature',
-            'date_signed': 'Date Signed'
-        }
-        
-        for field_key, field_label in field_labels.items():
+        for field_key, field_label in self.FIELD_LABELS.items():
             value = form_data.get(field_key)
             if value is not None and value != '':
                 if isinstance(value, float) and field_key.endswith('_funding'):
