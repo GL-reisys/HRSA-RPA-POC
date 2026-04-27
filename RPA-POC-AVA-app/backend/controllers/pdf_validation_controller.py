@@ -9,9 +9,6 @@ from services.ai_service import AIService
 from services.session_manager import SessionManager
 from datetime import datetime
 
-# Get backend URL from environment or use default
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
-
 pdf_bp = Blueprint('pdf', __name__)
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'uploads')
@@ -193,10 +190,9 @@ def analyze_pdf():
                     location_text = re.sub(r'(Page \d+, Field \w+)', r'<strong>\1</strong>', location_text)
                     consistent_section += f"&nbsp;&nbsp;&nbsp;• {location_text}"
                     
-                    # Add image if available (convert to absolute URL and make clickable)
+                    # Add image if available (use relative URL — frontend proxies /static/* to backend)
                     if error_obj.image_path:
-                        absolute_image_url = f"{BACKEND_URL}{error_obj.image_path}"
-                        consistent_section += f'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{absolute_image_url}" target="_blank"><img src="{absolute_image_url}" alt="{error_obj.field_name} field" style="max-width: 500px; border: 1px solid #ddd; margin-top: 5px; border-radius: 4px; cursor: pointer;" title="Click to open full size"></a>'
+                        consistent_section += f'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{error_obj.image_path}" target="_blank"><img src="{error_obj.image_path}" alt="{error_obj.field_name} field" style="max-width: 500px; border: 1px solid #ddd; margin-top: 5px; border-radius: 4px; cursor: pointer;" title="Click to open full size"></a>'
                     
                     consistent_section += "<br>"
                 
