@@ -43,6 +43,7 @@ required_vars=(
   AZURE_ACR_LOGIN_SERVER
   AZURE_CONTAINER_GROUP_NAME
   AZURE_DNS_LABEL
+  BACKEND_URL
 )
 
 for var_name in "${required_vars[@]}"; do
