@@ -6,11 +6,26 @@ import {
   Paper, 
   Typography, 
   CircularProgress,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ChatInterface from './ChatInterface';
+
+async function readJsonOrText(response) {
+  const body = await response.text();
+
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
 
 export default function AVAChatAssistant() {
   const [file, setFile] = useState(null);
@@ -51,12 +66,21 @@ export default function AVAChatAssistant() {
         body: formData,
       });
 
+      const uploadPayload = await readJsonOrText(uploadResponse);
+
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.error || 'Upload failed');
+        const message =
+          (uploadPayload && typeof uploadPayload === 'object' && uploadPayload.error) ||
+          (typeof uploadPayload === 'string' && uploadPayload) ||
+          'Upload failed';
+        throw new Error(message);
       }
 
-      const uploadResult = await uploadResponse.json();
+      if (!uploadPayload || typeof uploadPayload !== 'object') {
+        throw new Error('Upload returned an unexpected response.');
+      }
+
+      const uploadResult = uploadPayload;
       setFileId(uploadResult.file_id);
       
       setAnalyzing(true);
@@ -73,12 +97,21 @@ export default function AVAChatAssistant() {
         }),
       });
 
+      const analyzePayload = await readJsonOrText(analyzeResponse);
+
       if (!analyzeResponse.ok) {
-        const errorData = await analyzeResponse.json();
-        throw new Error(errorData.error || 'Analysis failed');
+        const message =
+          (analyzePayload && typeof analyzePayload === 'object' && analyzePayload.error) ||
+          (typeof analyzePayload === 'string' && analyzePayload) ||
+          'Analysis failed';
+        throw new Error(message);
       }
 
-      const analyzeResult = await analyzeResponse.json();
+      if (!analyzePayload || typeof analyzePayload !== 'object') {
+        throw new Error('Analysis returned an unexpected response.');
+      }
+
+      const analyzeResult = analyzePayload;
       
       setFormData(analyzeResult.form_data);
       setValidationErrors(analyzeResult.validation_errors || []);
@@ -156,63 +189,111 @@ export default function AVAChatAssistant() {
   }
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', mt: 4 }}>
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-          AVA Chat Assistant
-        </Typography>
-      </Paper>
-
+    <Box sx={{ 
+      minHeight: '100vh',
+      backgroundColor: '#f5f7f9',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: 3
+    }}>
       <Paper 
-        elevation={1} 
+        elevation={8} 
         sx={{ 
-          p: 6, 
-          textAlign: 'center',
-          border: '2px dashed #ccc',
-          backgroundColor: isDragActive ? '#f0f8ff' : '#fafafa',
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            backgroundColor: '#f5f5f5',
-            borderColor: '#999'
-          }
+          maxWidth: 550,
+          width: '100%',
+          p: 5,
+          borderRadius: 3,
+          textAlign: 'center'
         }}
       >
+        <Box sx={{ mb: 4 }}>
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              fontWeight: 700,
+              color: '#1e4d5a',
+              mb: 1
+            }}
+          >
+            AVA
+          </Typography>
+          <Typography variant="h6" sx={{ color: '#424242', fontWeight: 500 }}>
+            Application Validation Assistant
+          </Typography>
+        </Box>
+
         {uploading || analyzing ? (
-          <Box>
-            <CircularProgress size={60} sx={{ mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
+          <Box sx={{ py: 4 }}>
+            <CircularProgress size={60} sx={{ mb: 3, color: '#1e4d5a' }} />
+            <Typography variant="h6" sx={{ color: '#424242', fontWeight: 500, mb: 1 }}>
               {uploading ? 'Uploading PDF...' : 'Analyzing form...'}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
               {analyzing && 'Extracting form fields and validating data...'}
             </Typography>
           </Box>
         ) : (
-          <div {...getRootProps()}>
-            <input {...getInputProps()} />
-            <UploadFileIcon sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h5" gutterBottom sx={{ color: '#003366', fontWeight: 600 }}>
-              Upload SF-424 Form for Validation
+          <Box>
+            <Typography variant="h6" sx={{ color: '#1e4d5a', fontWeight: 600, mb: 2 }}>
+              Upload SF-424 Form
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
-              Drag and drop your PDF file here
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              Get instant validation and AI-powered assistance
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              or click to browse
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
-              Supported: PDF files only (Max 10MB)
-            </Typography>
-          </div>
+            
+            <Box
+              {...getRootProps()}
+              sx={{
+                p: 4,
+                border: '2px dashed #e0e0e0',
+                borderRadius: 2,
+                backgroundColor: isDragActive ? '#f0f8ff' : '#fafafa',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                mb: 3,
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                  borderColor: '#1e4d5a'
+                }
+              }}
+            >
+              <input {...getInputProps()} />
+              <UploadFileIcon sx={{ fontSize: 60, color: '#1e4d5a', mb: 2 }} />
+              <Typography variant="body1" sx={{ color: '#424242', mb: 1 }}>
+                Drag and drop your PDF here
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                or click to browse
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                PDF files only (Max 10MB)
+              </Typography>
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
+
+            <Button
+              variant="text"
+              sx={{ 
+                color: '#1e4d5a',
+                textTransform: 'none',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  textDecoration: 'underline'
+                }
+              }}
+            >
+              Need help?
+            </Button>
+          </Box>
         )}
       </Paper>
-
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
     </Box>
   );
 }

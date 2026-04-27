@@ -16,6 +16,20 @@ import SendIcon from '@mui/icons-material/Send';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DescriptionIcon from '@mui/icons-material/Description';
 
+async function readJsonOrText(response) {
+  const body = await response.text();
+
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
 export default function ChatInterface({ 
   fileId, 
   fileName, 
@@ -75,11 +89,21 @@ export default function ChatInterface({
         }),
       });
 
+      const payload = await readJsonOrText(response);
+
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const message =
+          (payload && typeof payload === 'object' && payload.error) ||
+          (typeof payload === 'string' && payload) ||
+          'Failed to send message';
+        throw new Error(message);
       }
 
-      const result = await response.json();
+      if (!payload || typeof payload !== 'object') {
+        throw new Error('Chat returned an unexpected response.');
+      }
+
+      const result = payload;
 
       const assistantMessage = {
         role: 'assistant',
@@ -112,11 +136,16 @@ export default function ChatInterface({
   const validationStatus = validationErrors.length === 0 ? 'PASSED' : 'FAILED';
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4 }}>
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+    <Box sx={{ 
+      minHeight: '100vh',
+      backgroundColor: '#f5f7f9',
+      p: 3 
+    }}>
+      <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#1e4d5a' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
+            <Typography variant="h5" sx={{ fontWeight: 600, color: '#ffffff' }}>
               AVA Chat Assistant
             </Typography>
             <Chip 
@@ -124,6 +153,7 @@ export default function ChatInterface({
               label={fileName} 
               color="primary" 
               variant="outlined"
+              sx={{ backgroundColor: '#ffffff' }}
             />
             <Chip 
               label={validationStatus}
@@ -131,19 +161,19 @@ export default function ChatInterface({
               size="small"
             />
           </Box>
-          <IconButton onClick={onReset} color="primary" title="Upload new form">
+          <IconButton onClick={onReset} sx={{ color: '#ffffff' }} title="Upload new form">
             <RefreshIcon />
           </IconButton>
         </Box>
       </Paper>
 
-      <Paper elevation={1} sx={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
+      <Paper elevation={1} sx={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
         <Box 
           sx={{ 
             flex: 1, 
             overflowY: 'auto', 
             p: 3,
-            backgroundColor: '#fafafa'
+            backgroundColor: '#ffffff'
           }}
         >
           {chatHistory.map((msg, index) => (
@@ -156,13 +186,22 @@ export default function ChatInterface({
               }}
             >
               <Paper
-                elevation={1}
+                elevation={msg.role === 'user' ? 2 : 3}
                 sx={{
-                  p: 2,
+                  p: 2.5,
                   maxWidth: '70%',
-                  backgroundColor: msg.role === 'user' ? '#e3f2fd' : '#fff',
+                  backgroundColor: msg.role === 'user' 
+                    ? '#e8f4f8' 
+                    : '#ffffff',
+                  background: msg.role === 'user' 
+                    ? '#e8f4f8' 
+                    : '#ffffff',
                   color: '#000',
-                  border: msg.role === 'user' ? '1px solid #90caf9' : '1px solid #e0e0e0'
+                  border: msg.role === 'user' ? '1px solid #90caf9' : '1px solid #d0d0d0',
+                  borderRadius: 2,
+                  boxShadow: msg.role === 'assistant' && (index === 1 || msg.content.includes('Not ready for submission') || msg.content.includes('Ready for submission') || msg.content.includes('Fields validated successfully') || msg.content.includes('Need to Fix'))
+                    ? '0 4px 12px rgba(0,0,0,0.1)'
+                    : undefined
                 }}
               >
                 {msg.role === 'assistant' && !msg.isGreeting && (
@@ -281,6 +320,7 @@ export default function ChatInterface({
           </Box>
         </Box>
       </Paper>
+      </Box>
     </Box>
   );
 }

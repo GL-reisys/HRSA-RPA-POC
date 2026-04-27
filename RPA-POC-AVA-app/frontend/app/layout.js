@@ -16,16 +16,16 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ThemeRegistry>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <AppBar position="static" sx={{ backgroundColor: '#003366' }}>
+            <AppBar position="static" sx={{ backgroundColor: '#1e4d5a' }}>
               <Toolbar>
                 <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
                   Application Validation Assistant (AVA)
                 </Typography>
               </Toolbar>
             </AppBar>
-            <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }} maxWidth="xl">
+            <Box component="main" sx={{ flex: 1 }}>
               {children}
-            </Container>
+            </Box>
           </Box>
         </ThemeRegistry>
       </body>

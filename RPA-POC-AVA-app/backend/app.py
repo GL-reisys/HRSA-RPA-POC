@@ -23,7 +23,7 @@ def validate_environment():
 
 validate_environment()
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from controllers.document_controller import document_bp
 from controllers.pdf_validation_controller import pdf_bp
@@ -33,12 +33,17 @@ from config.runtime import get_allowed_origins, get_port, is_debug_enabled, reso
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='static', static_url_path='/static')
 
     CORS(app, resources={
         r"/api/*": {
             "origins": get_allowed_origins(),
             "methods": ["GET", "POST", "PUT", "DELETE"],
+            "allow_headers": ["Content-Type"],
+        },
+        r"/static/*": {
+            "origins": get_allowed_origins(),
+            "methods": ["GET"],
             "allow_headers": ["Content-Type"],
         }
     })
