@@ -131,7 +131,6 @@ def analyze_pdf():
         
         if validation_errors:
             consistent_section = "<strong>Here is a quick summary:</strong><br><br>"
-            consistent_section += "❌ <strong>Not ready for submission</strong><br><br>"
             
             # Determine which fields have errors by checking field_name
             error_field_names = set()
@@ -141,17 +140,28 @@ def analyze_pdf():
             
             # Define all major fields that are validated with their form data keys
             all_fields = [
-                ('Organization Name', 'organization_name'),
                 ('UEI', 'samuei'),
-                ('EIN', 'employer_taxpayer_identification_number'),
                 ('Application Type', 'application_type'),
                 ('Funding Opportunity Number', 'funding_opportunity_number'),
-                ('Project Title', 'project_title'),
-                ('Contact Email', 'email'),
-                ('Contact Phone', 'phone_number'),
             ]
             
-            # Show fields that passed validation with green checkmarks
+            # Add Grant Number for continuation applications
+            if app_type_normalized == 'continuation':
+                all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
+            
+            # Show fields that need fixes with cross marks FIRST
+            error_fields = []
+            for error_obj in validation_errors_obj:
+                if error_obj.field_name:
+                    error_fields.append(error_obj.field_name)
+            
+            if error_fields:
+                consistent_section += "<strong>Need to Fix:</strong><br>"
+                for field in error_fields:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;❌ {field}<br>"
+                consistent_section += "<br>"
+            
+            # Show fields that passed validation with green checkmarks SECOND
             passed_fields = []
             for field_name, form_key in all_fields:
                 # Check if field has value and no errors
@@ -163,18 +173,6 @@ def analyze_pdf():
                 # Display each field on a separate row
                 for field in passed_fields:
                     consistent_section += f"&nbsp;&nbsp;&nbsp;✅ {field}<br>"
-                consistent_section += "<br>"
-            
-            # Show fields that need fixes with cross marks
-            error_fields = []
-            for error_obj in validation_errors_obj:
-                if error_obj.field_name:
-                    error_fields.append(error_obj.field_name)
-            
-            if error_fields:
-                consistent_section += "<strong>Need to Fix:</strong><br>"
-                for field in error_fields:
-                    consistent_section += f"&nbsp;&nbsp;&nbsp;❌ {field}<br>"
                 consistent_section += "<br>"
             
             for idx, error_obj in enumerate(validation_errors_obj, 1):
@@ -224,15 +222,14 @@ def analyze_pdf():
             
             # Show verified fields dynamically - same logic as failure case
             all_fields = [
-                ('Organization Name', 'organization_name'),
                 ('UEI', 'samuei'),
-                ('EIN', 'employer_taxpayer_identification_number'),
                 ('Application Type', 'application_type'),
                 ('Funding Opportunity Number', 'funding_opportunity_number'),
-                ('Project Title', 'project_title'),
-                ('Contact Email', 'email'),
-                ('Contact Phone', 'phone_number'),
             ]
+            
+            # Add Grant Number for continuation applications
+            if app_type_normalized == 'continuation':
+                all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
             
             passed_fields = []
             for field_name, form_key in all_fields:

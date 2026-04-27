@@ -67,14 +67,15 @@ class ValidationErrorFactory:
 
     @staticmethod
     def uei_not_found(uei: str) -> ValidationError:
+        guidance = "• Verify the UEI by checking the SAM.gov registry. Go to the SAM.gov website and use the search function to enter your UEI. Confirm if the UEI is currently active and registered.<br>• If the UEI is inactive or not found, consider registering through SAM.gov to obtain a valid UEI."
         return ValidationErrorFactory._create(
-            "UEI is incorrect.",
+            "UEI is neither associated with an organization registered in the system nor in SAM.gov.",
             f"UEI lookup failed. UEI not found: {uei}. This UEI does not exist in the SAM.gov registry or is inactive.",
             field_name="UEI",
             page_number=1,
-            field_location="Kindly update Page 1, Field 8c",
+            field_location="Page 1, Field 8c",
             current_value=uei,
-            guidance=None,
+            guidance=guidance,
             image_path="/static/images/fields/uei_field.png"
         )
 
@@ -85,21 +86,22 @@ class ValidationErrorFactory:
             f"Organization name mismatch for UEI {uei}. Submitted: {submitted_name}. Expected registered name in SAM.gov: {expected_name}.",
             field_name="Organization Name",
             page_number=1,
-            field_location="Kindly update Page 1, Field 8a",
+            field_location="Page 1, Field 8a",
             current_value=submitted_name,
             guidance=None
         )
 
     @staticmethod
     def fon_not_found(fon: str) -> ValidationError:
+        guidance = "• Verify the Funding Opportunity Number by checking the official Grants.gov website for current funding opportunities.<br>• Confirm that the Funding Opportunity Number HRSA-26-994 is correct by checking the official Grants.gov website for current opportunities."
         return ValidationErrorFactory._create(
             "Funding Opportunity Number is incorrect.",
             f"Funding Opportunity Number not found in system: {fon}. This funding opportunity number does not exist or is not currently accepting applications.",
             field_name="Funding Opportunity Number",
             page_number=1,
-            field_location="Kindly update Page 1, Field 4",
+            field_location="Page 1, Field 4",
             current_value=fon,
-            guidance=None,
+            guidance=guidance,
             image_path="/static/images/fields/funding_opportunity_field.png"
         )
 
@@ -138,14 +140,15 @@ class ValidationErrorFactory:
 
     @staticmethod
     def duplicate_application(fon: str, application_type: str = "New") -> ValidationError:
+        guidance = "• If a duplicate application is found, reach out to Program/Grants Office Contact for details."
         return ValidationErrorFactory._create(
-            "Type of Application is incorrect. An application for this funding opportunity already exists.",
+            "An application for this funding opportunity already exists.",
             f"Duplicate application detected for funding opportunity {fon}. An application already exists for this organization.",
             field_name="Type of Application",
             page_number=1,
-            field_location="Kindly update Page 1, Field 2",
+            field_location="Page 1, Field 2",
             current_value=application_type,
-            guidance=None,
+            guidance=guidance,
             image_path="/static/images/fields/application_type_field.png"
         )
 
@@ -156,18 +159,18 @@ class ValidationErrorFactory:
             "Grant Number missing for a continuation application.",
             field_name="Federal Award Identifier",
             page_number=1,
-            field_location="Kindly update Page 1, Field 5b",
+            field_location="Page 1, Field 5b",
             image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
     def grant_not_found(grant_number: str) -> ValidationError:
         return ValidationErrorFactory._create(
-            "Grant Number was not found.",
+            "Grant Number is not valid.",
             f"Grant lookup failed. Grant Number not found: {grant_number}.",
             field_name="Federal Award Identifier",
             page_number=1,
-            field_location="Kindly update Page 1, Field 5b",
+            field_location="Page 1, Field 5b",
             current_value=grant_number,
             image_path="/static/images/fields/grant_number.png"
         )
@@ -179,7 +182,7 @@ class ValidationErrorFactory:
             f"Grant ownership mismatch. Grant Number: {grant_number}. UEI: {uei}.",
             field_name="Federal Award Identifier",
             page_number=1,
-            field_location="Kindly update Page 1, Field 5b",
+            field_location="Page 1, Field 5b",
             current_value=grant_number,
             image_path="/static/images/fields/grant_number.png"
         )
@@ -191,7 +194,7 @@ class ValidationErrorFactory:
             f"Grant is expired or inactive: {grant_number}.",
             field_name="Federal Award Identifier",
             page_number=1,
-            field_location="Kindly update Page 1, Field 5b",
+            field_location="Page 1, Field 5b",
             current_value=grant_number,
             image_path="/static/images/fields/grant_number.png"
         )
