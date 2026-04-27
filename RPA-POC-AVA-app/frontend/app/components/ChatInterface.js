@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Paper, 
@@ -52,7 +52,6 @@ export default function ChatInterface({
   });
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,14 +59,13 @@ export default function ChatInterface({
 
   useEffect(() => {
     scrollToBottom();
-    // Restore focus after scroll and state update
-    if (!sending) {
-      const timer = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
+  }, [chatHistory]);
+
+  const setInputRef = useCallback((node) => {
+    if (node && !sending) {
+      node.focus();
     }
-  }, [chatHistory, sending]);
+  }, [sending]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || sending) return;
@@ -315,7 +313,7 @@ export default function ChatInterface({
               disabled={sending}
               variant="outlined"
               size="small"
-              inputRef={inputRef}
+              inputRef={setInputRef}
               sx={{ backgroundColor: '#fff' }}
             />
             <Button
