@@ -142,8 +142,12 @@ def analyze_pdf():
                 ('Funding Opportunity Number', 'funding_opportunity_number'),
             ]
             
-            # Add Grant Number for continuation applications
-            if app_type_normalized == 'continuation':
+            # Add Grant Number if NOT "New only" funding opportunity
+            # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
+            if (grant_number and 
+                app_type_normalized in ['2', '3'] and
+                funding_opportunity and 
+                funding_opportunity.type_of_app_by_fo != 1):
                 all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
             
             # Show fields that need fixes with cross marks FIRST
@@ -153,7 +157,7 @@ def analyze_pdf():
                     error_fields.append(error_obj.field_name)
             
             if error_fields:
-                consistent_section += "<strong>Need to Fix:</strong><br>"
+                consistent_section += "<strong>Need to fix the following error(s):</strong><br>"
                 for field in error_fields:
                     consistent_section += f"&nbsp;&nbsp;&nbsp;❌ {field}<br>"
                 consistent_section += "<br>"
@@ -223,8 +227,12 @@ def analyze_pdf():
                 ('Funding Opportunity Number', 'funding_opportunity_number'),
             ]
             
-            # Add Grant Number for continuation applications
-            if app_type_normalized == 'continuation':
+            # Add Grant Number if NOT "New only" funding opportunity
+            # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
+            if (grant_number and 
+                app_type_normalized in ['2', '3'] and
+                funding_opportunity and 
+                funding_opportunity.type_of_app_by_fo != 1):
                 all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
             
             passed_fields = []

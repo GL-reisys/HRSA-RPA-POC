@@ -168,7 +168,7 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number is not valid.",
             f"Grant lookup failed. Grant Number not found: {grant_number}.",
-            field_name="Federal Award Identifier",
+            field_name="Grant Number",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
@@ -180,7 +180,7 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number does not belong to the organization identified by the UEI provided.",
             f"Grant ownership mismatch. Grant Number: {grant_number}. UEI: {uei}.",
-            field_name="Federal Award Identifier",
+            field_name="Grant Number",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
@@ -192,7 +192,7 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number is no longer active.",
             f"Grant is expired or inactive: {grant_number}.",
-            field_name="Federal Award Identifier",
+            field_name="Grant Number",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
