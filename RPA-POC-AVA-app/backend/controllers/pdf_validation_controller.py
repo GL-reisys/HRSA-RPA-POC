@@ -220,7 +220,7 @@ def analyze_pdf():
                 consistent_section += "<br>"
         else:
             consistent_section = "<strong>Here is a summary:</strong><br><br>"
-            consistent_section += "✅ <strong>Ready for submission to Grants.gov</strong><br><br>"
+            consistent_section += "✅ <strong>Application has passed the validations</strong><br><br>"
             
             # Show verified fields dynamically - same logic as failure case
             all_fields = [

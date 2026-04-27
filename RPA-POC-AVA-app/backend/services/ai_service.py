@@ -228,7 +228,7 @@ For FAILED validation - explain the ROOT CAUSE clearly:
 ❌ <strong>Not ready for submission</strong><br><br><strong>Verify these fields:</strong><br>&nbsp;&nbsp;&nbsp;• Uei<br>&nbsp;&nbsp;&nbsp;• Application Type<br><br><strong>Issues found:</strong> 2<br><br>❌ <strong>Fix these issues:</strong><br><br>1. <strong>UEI</strong> is incorrect.<br>&nbsp;&nbsp;&nbsp;• Kindly update <strong>Page 1, Field 8c</strong><br>&nbsp;&nbsp;&nbsp;• <strong>Current Value:</strong> Z2ZZAAQ62ON8<br>&nbsp;&nbsp;&nbsp;• <strong>Root Cause:</strong> This UEI does not exist in the SAM.gov registry or is inactive<br>&nbsp;&nbsp;&nbsp;• Verify there are no typos or extra spaces in the UEI entered<br><br>2. <strong>Type of Application</strong> is incorrect.<br>&nbsp;&nbsp;&nbsp;• Kindly update <strong>Page 1, Field 2</strong><br>&nbsp;&nbsp;&nbsp;• <strong>Current Value:</strong> New<br>&nbsp;&nbsp;&nbsp;• <strong>Root Cause:</strong> This funding opportunity (HRSA-26-094) only accepts Continuation applications, not New applications<br>&nbsp;&nbsp;&nbsp;• Change the Application Type to Continuation
 
 For PASSED validation:
-✅ <strong>Ready for submission to Grants.gov</strong><br><br>All validation checks passed:<br>• <strong>UEI:</strong> Verified in SAM.gov<br>• <strong>Application Type:</strong> Matches funding opportunity requirements<br>• <strong>Funding Opportunity:</strong> Valid<br><br>Your SF-424 form is complete and ready for submission.
+✅ <strong>Application has passed the validations</strong><br><br>All validation checks passed:<br>• <strong>UEI:</strong> Verified in SAM.gov<br>• <strong>Application Type:</strong> Matches funding opportunity requirements<br>• <strong>Funding Opportunity:</strong> Valid<br><br>Your SF-424 form is complete and ready for submission.
 
 For follow-up questions (ALWAYS USE HTML - bullets MUST start on new line):
 You can find your <strong>UEI (Unique Entity Identifier)</strong> in the SAM.gov registry. To verify your UEI, follow these steps:<br><br>• Go to the SAM.gov website<br>• Use the search function to enter your UEI: <strong>Z2ZZAAQ62ON8</strong><br>• Check if the UEI is currently active and registered<br><br>If you have not registered for a UEI, you may need to register through SAM.gov. Ensure there are no typographical errors when entering the UEI in your SF-424 form.
@@ -533,7 +533,7 @@ Example WRONG response #3 (validation structure):
                 message += f"{idx}. {error}<br>"
             message += "<br>Please correct these errors before submitting."
         else:
-            message = "✅ <strong>Ready for submission to Grants.gov</strong><br><br>"
+            message = "✅ <strong>Application has passed the validations</strong><br><br>"
             message += "All validation checks passed successfully.<br><br>"
             message += "Your SF-424 form is complete and ready for submission."
         
