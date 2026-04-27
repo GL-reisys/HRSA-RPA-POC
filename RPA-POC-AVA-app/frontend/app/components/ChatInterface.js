@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Paper, 
@@ -60,6 +60,12 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom();
   }, [chatHistory]);
+
+  const setInputRef = useCallback((node) => {
+    if (node && !sending) {
+      node.focus();
+    }
+  }, [sending]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || sending) return;
@@ -307,6 +313,7 @@ export default function ChatInterface({
               disabled={sending}
               variant="outlined"
               size="small"
+              inputRef={setInputRef}
               sx={{ backgroundColor: '#fff' }}
             />
             <Button
