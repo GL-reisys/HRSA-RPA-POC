@@ -141,7 +141,19 @@ class AIService:
         try:
             messages = []
             
-            system_prompt = self._build_system_prompt(form_context)
+            # Check if this is a troubleshooting guidance request
+            is_troubleshooting = (
+                form_context and 
+                'validation_errors' in form_context and 
+                ('CRITICAL' in message or 'fix' in message.lower() or 'error' in message.lower())
+            )
+            
+            # Use troubleshooting prompt for error guidance, general prompt for chat
+            if is_troubleshooting:
+                system_prompt = self._build_troubleshooting_system_prompt()
+            else:
+                system_prompt = self._build_system_prompt(form_context)
+            
             messages.append({"role": "system", "content": system_prompt})
             
             for msg in chat_history:
@@ -227,16 +239,49 @@ CRITICAL: When introducing a list, ALWAYS add <br><br> BEFORE the first bullet p
     
     def _build_troubleshooting_system_prompt(self) -> str:
         """Build system prompt specifically for troubleshooting guidance generation."""
-        prompt = """Generate troubleshooting guidance for SF-424 form validation issues.
+        prompt = """Generate ONLY bulleted guidance for SF-424 form validation issues.
 
-Rules:
-- DO NOT include status headers or list validation errors
-- Start with actionable steps (50-100 words)
-- Focus on form data corrections (typos, field matching, format)- Use HTML: <br> for line breaks, <strong> for emphasis
+ABSOLUTELY FORBIDDEN - DO NOT INCLUDE:
+❌ "Not ready for submission"
+❌ "Verify these fields:"
+❌ "Issues found:"
+❌ "Fix these issues:"
+❌ "Root Cause:"
+❌ "How to Fix:"
+❌ Any status headers or labels
+❌ Any field lists before the guidance
+❌ Any numbered errors (1. 2. 3.)
+❌ Any ❌ or ✅ symbols
+❌ ANY intro text like "Verify these steps to fix..." or "Follow these steps..." or "To resolve..."
+❌ ANY explanatory sentences before bullets whatsoever
+❌ "To resolve the [error], please follow these steps:"
+❌ "Here's how to fix this issue:"
+❌ "Fix these issues:"
+❌ "Follow these instructions:"
+❌ "Complete the following:"
+❌ Any sentence, phrase, or text that comes before the first bullet
 
-Example format:
+CRITICAL: Your FIRST character MUST be • (bullet). ABSOLUTELY ZERO text, words, or characters before it. Not even a single word.
 
-<strong>What to check:</strong><br>• Verify the <strong>Funding Opportunity</strong> code matches the announcement exactly (case, hyphens, spaces — no trailing spaces)<br>• Re-select the opportunity from the form's dropdown to ensure the code field is populated<br>• Confirm the <strong>Application Type</strong> aligns with what the funding opportunity accepts<br><br>If issues persist, contact your program officer."""
+REQUIRED FORMAT:
+• Your response MUST start with • immediately - NO text before first bullet
+• Combine related short sentences into single bullets (more concise)
+• Use <br> to separate bullets
+• Keep it focused (2-3 bullets maximum)
+• Each bullet can contain multiple related sentences
+
+Example CORRECT response (starts with • as first character, combines related ideas):
+"• Verify the UEI by checking the SAM.gov registry. Go to the SAM.gov website and use the search function to enter your UEI. Confirm if the UEI is currently active and registered.<br>• If the UEI is inactive or not found, consider re-registering your entity in SAM.gov to obtain a new UEI."
+
+Example WRONG response #1 (has intro sentence):
+"To resolve the application type mismatch error, please follow these steps:<br><br>• Go to the SF-424 form..."
+
+Example WRONG response #2 (has intro text):
+"Verify these steps to fix the UEI issue:<br><br>• Double-check the UEI..."
+
+Example WRONG response #3 (validation structure):
+"❌ Not ready for submission\n\nVerify these fields:\n• UEI"
+"""
         
         return prompt
     

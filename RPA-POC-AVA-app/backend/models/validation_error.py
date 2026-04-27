@@ -67,77 +67,65 @@ class ValidationErrorFactory:
 
     @staticmethod
     def uei_not_found(uei: str) -> ValidationError:
-        guidance = (
-            f"• Verify the UEI is correctly entered without any extra spaces or typos (ensure it's {uei})<br>"
-            "&nbsp;&nbsp;&nbsp;• Ensure that the UEI is registered and active; visit the authorized website to confirm its status"
-        )
         return ValidationErrorFactory._create(
             "UEI is incorrect.",
-            f"UEI lookup failed. UEI not found: {uei}.",
+            f"UEI lookup failed. UEI not found: {uei}. This UEI does not exist in the SAM.gov registry or is inactive.",
             field_name="UEI",
             page_number=1,
             field_location="Kindly update Page 1, Field 8c",
             current_value=uei,
-            guidance=guidance,
+            guidance=None,
             image_path="/static/images/fields/uei_field.png"
         )
 
     @staticmethod
     def org_name_mismatch(submitted_name: str, expected_name: str, uei: str) -> ValidationError:
-        guidance = f"• Update the Organization Name to match the registered name: {expected_name}<br>&nbsp;&nbsp;&nbsp;• Ensure there are no typos or extra spaces in the organization name"
         return ValidationErrorFactory._create(
             "Organization Name is incorrect.",
-            f"Organization name mismatch for UEI {uei}. Submitted: {submitted_name}. Expected: {expected_name}.",
+            f"Organization name mismatch for UEI {uei}. Submitted: {submitted_name}. Expected registered name in SAM.gov: {expected_name}.",
             field_name="Organization Name",
             page_number=1,
             field_location="Kindly update Page 1, Field 8a",
             current_value=submitted_name,
-            guidance=guidance
+            guidance=None
         )
 
     @staticmethod
     def fon_not_found(fon: str) -> ValidationError:
-        guidance = (
-            f"• Verify the Funding Opportunity code matches the announcement exactly (case-sensitive, including hyphens and spaces)<br>"
-            "&nbsp;&nbsp;&nbsp;• Re-select the opportunity from the form's dropdown to ensure the code field is populated correctly<br>"
-            "&nbsp;&nbsp;&nbsp;• Confirm you're using the current solicitation number with your program contact"
-        )
         return ValidationErrorFactory._create(
             "Funding Opportunity Number is incorrect.",
-            f"Funding Opportunity Number not found: {fon}.",
+            f"Funding Opportunity Number not found in system: {fon}. This funding opportunity number does not exist or is not currently accepting applications.",
             field_name="Funding Opportunity Number",
             page_number=1,
             field_location="Kindly update Page 1, Field 4",
             current_value=fon,
-            guidance=guidance,
+            guidance=None,
             image_path="/static/images/fields/funding_opportunity_field.png"
         )
 
     @staticmethod
     def type_mismatch_continuation_required(fon: str, application_type: str = "New") -> ValidationError:
-        guidance = f"• Confirm that the Application Type is set to Continuation instead of {application_type} for the funding opportunity {fon}"
         return ValidationErrorFactory._create(
             "Type of Application is incorrect. This funding opportunity only accepts continuation applications.",
-            f"Application type mismatch for funding opportunity {fon}. Continuation is required.",
+            f"Application type mismatch for funding opportunity {fon}. You submitted {application_type} but this FON only accepts Continuation applications.",
             field_name="Type of Application",
             page_number=1,
             field_location="Kindly update Page 1, Field 2",
             current_value=application_type,
-            guidance=guidance,
+            guidance=None,
             image_path="/static/images/fields/application_type_field.png"
         )
 
     @staticmethod
     def type_mismatch_new_required(fon: str, application_type: str) -> ValidationError:
-        guidance = f"• Confirm that the Application Type is set to New instead of {application_type} for the funding opportunity {fon}"
         return ValidationErrorFactory._create(
             "Type of Application is incorrect. This funding opportunity only accepts new applications.",
-            f"Application type mismatch for funding opportunity {fon}. Received {application_type}; new application required.",
+            f"Application type mismatch for funding opportunity {fon}. You submitted {application_type} but this FON only accepts New applications.",
             field_name="Type of Application",
             page_number=1,
             field_location="Kindly update Page 1, Field 2",
             current_value=application_type,
-            guidance=guidance,
+            guidance=None,
             image_path="/static/images/fields/application_type_field.png"
         )
 
@@ -150,15 +138,14 @@ class ValidationErrorFactory:
 
     @staticmethod
     def duplicate_application(fon: str, application_type: str = "New") -> ValidationError:
-        guidance = f"• Change the Application Type to Continuation or Revision since an application for {fon} already exists"
         return ValidationErrorFactory._create(
             "Type of Application is incorrect. An application for this funding opportunity already exists.",
-            f"Duplicate application detected for funding opportunity {fon}.",
+            f"Duplicate application detected for funding opportunity {fon}. An application already exists for this organization.",
             field_name="Type of Application",
             page_number=1,
             field_location="Kindly update Page 1, Field 2",
             current_value=application_type,
-            guidance=guidance,
+            guidance=None,
             image_path="/static/images/fields/application_type_field.png"
         )
 
@@ -167,6 +154,10 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number is required for continuation applications.",
             "Grant Number missing for a continuation application.",
+            field_name="Federal Award Identifier",
+            page_number=1,
+            field_location="Kindly update Page 1, Field 5b",
+            image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
@@ -174,6 +165,11 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number was not found.",
             f"Grant lookup failed. Grant Number not found: {grant_number}.",
+            field_name="Federal Award Identifier",
+            page_number=1,
+            field_location="Kindly update Page 1, Field 5b",
+            current_value=grant_number,
+            image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
@@ -181,6 +177,11 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number does not belong to the organization identified by the UEI provided.",
             f"Grant ownership mismatch. Grant Number: {grant_number}. UEI: {uei}.",
+            field_name="Federal Award Identifier",
+            page_number=1,
+            field_location="Kindly update Page 1, Field 5b",
+            current_value=grant_number,
+            image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
@@ -188,6 +189,11 @@ class ValidationErrorFactory:
         return ValidationErrorFactory._create(
             "Grant Number is no longer active.",
             f"Grant is expired or inactive: {grant_number}.",
+            field_name="Federal Award Identifier",
+            page_number=1,
+            field_location="Kindly update Page 1, Field 5b",
+            current_value=grant_number,
+            image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
