@@ -10,15 +10,19 @@ from models.grant import Grant
 class DatabaseService:
     """
     Database abstraction layer implementing GEMS database queries.
-    Uses JSON for POC, PostgreSQL for production.
+    Uses JSON for POC, SQL Server for production.
     """
     
-    def __init__(self, use_postgres: bool = False):
-        self.use_postgres = use_postgres
+    def __init__(self, use_sql_server: bool = None):
+        # Read from environment variable if not explicitly set
+        if use_sql_server is None:
+            use_sql_server = os.getenv('USE_SQL_SERVER', 'false').lower() == 'true'
+        
+        self.use_sql_server = use_sql_server
         self.queries = QUERIES
         
-        if use_postgres:
-            self._init_postgres()
+        if use_sql_server:
+            self._init_sql_server()
         else:
             self._init_json()
     
@@ -32,15 +36,26 @@ class DatabaseService:
         self.data = self._load_json()
         self.conn = None
     
-    def _init_postgres(self):
-        """Initialize PostgreSQL connection"""
-        import psycopg2
-        self.conn = psycopg2.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            database=os.getenv('DB_NAME', 'GEMS'),
-            user=os.getenv('DB_USER', 'postgres'),
-            password=os.getenv('DB_PASSWORD')
+    def _init_sql_server(self):
+        """Initialize SQL Server connection using pyodbc"""
+        import pyodbc
+        
+        server = os.getenv('DB_SERVER', 'localhost')
+        database = os.getenv('DB_NAME', 'GEMS')
+        username = os.getenv('DB_USER')
+        password = os.getenv('DB_PASSWORD')
+        driver = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+        
+        connection_string = (
+            f'DRIVER={{{driver}}};'
+            f'SERVER={server};'
+            f'DATABASE={database};'
+            f'UID={username};'
+            f'PWD={password};'
+            f'TrustServerCertificate=yes;'
         )
+        
+        self.conn = pyodbc.connect(connection_string)
         self.data = None
     
     def _load_json(self) -> Dict[str, Any]:
@@ -66,9 +81,9 @@ class DatabaseService:
         Check if UEI exists in ExternalOrganizations.
         Maps to: ValidateUEI statement
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
-            cursor.execute(self.queries['validate_uei'], {'uei': uei})
+            cursor.execute(self.queries['validate_uei'], (uei,))
             result = cursor.fetchone()
             return result is not None
         else:
@@ -87,10 +102,10 @@ class DatabaseService:
         Maps to: GetFundingCycleByCode statement
         Returns: FundingOpportunity model (5 fields only) or None
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
             cursor.execute(self.queries['get_funding_cycle_by_code'], 
-                         {'announcement_number': announcement_number})
+                         (announcement_number,))
             
             row = cursor.fetchone()
             if row:
@@ -125,9 +140,9 @@ class DatabaseService:
         Maps to: GetOrganizationByUEI statement
         Returns: Organization model (3 fields only) or None
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
-            cursor.execute(self.queries['get_organization_by_uei'], {'uei': uei})
+            cursor.execute(self.queries['get_organization_by_uei'], (uei,))
             
             row = cursor.fetchone()
             if row:
@@ -157,10 +172,10 @@ class DatabaseService:
         Get grant by grant number.
         Maps to: GetGrantByNumber statement
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
             cursor.execute(self.queries['get_grant_by_number'], 
-                         {'grant_number': grant_number})
+                         (grant_number,))
             
             row = cursor.fetchone()
             if row:
@@ -188,11 +203,10 @@ class DatabaseService:
         Get active grants for organization and funding cycle.
         Maps to: GetActiveGrantsByOrganization statement
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
             cursor.execute(self.queries['get_active_grants_by_organization'],
-                         {'funding_cycle_id': funding_cycle_id, 
-                          'organization_id': organization_id})
+                         (funding_cycle_id, organization_id))
             
             results = []
             for row in cursor.fetchall():
@@ -257,10 +271,10 @@ class DatabaseService:
         Check if grant's program matches funding opportunity.
         Maps to: CheckProgramMatch statement
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
             cursor.execute(self.queries['check_program_match'],
-                         {'grant_id': grant_id, 'fo': fo})
+                         (grant_id, fo))
             
             return cursor.fetchone() is not None
         else:
@@ -288,17 +302,18 @@ class DatabaseService:
         Used for duplicate detection - returns existing active applications.
         Maps to: FindRelatedApplications statement
         """
-        if self.use_postgres:
+        if self.use_sql_server:
             cursor = self.conn.cursor()
             cursor.execute(self.queries['find_related_applications'],
-                         {'fo': fo, 'org': org})
+                         (fo, org))
             
             results = []
             for row in cursor.fetchall():
                 results.append({
                     'application_id': row[0],
                     'application_status_flag': row[1],
-                    'application_type_code': row[2]
+                    'application_type_code': row[2],
+                    'grant_id': row[3]
                 })
             return results
         else:
@@ -341,6 +356,6 @@ class DatabaseService:
         return db_name == input_name, org.organization_name
     
     def close(self):
-        """Close database connection if using PostgreSQL"""
-        if self.use_postgres and self.conn:
+        """Close database connection if using SQL Server"""
+        if self.use_sql_server and self.conn:
             self.conn.close()

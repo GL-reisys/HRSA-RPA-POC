@@ -138,7 +138,7 @@ def analyze_pdf():
             # Define all major fields that are validated with their form data keys
             all_fields = [
                 ('UEI', 'samuei'),
-                ('Application Type', 'application_type'),
+                ('Type of Application', 'application_type'),
                 ('Funding Opportunity Number', 'funding_opportunity_number'),
             ]
             

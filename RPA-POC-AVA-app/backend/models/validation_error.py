@@ -133,9 +133,15 @@ class ValidationErrorFactory:
 
     @staticmethod
     def grant_number_not_allowed(fon: str) -> ValidationError:
+        guidance = "• Verify that the Funding Opportunity Number in Field 1 only accepts New applications.<br>• If this is a New application, leave Field 5b (Federal Award Identifier) blank."
         return ValidationErrorFactory._create(
             "Grant Number should not be provided for this funding opportunity.",
             f"Grant Number was provided for funding opportunity {fon}, which only accepts new applications.",
+            field_name="Grant Number/Federal Award Identifier",
+            page_number=1,
+            field_location="Page 1, Field 5b",
+            guidance=guidance,
+            image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
@@ -154,54 +160,69 @@ class ValidationErrorFactory:
 
     @staticmethod
     def grant_number_required() -> ValidationError:
+        guidance = "• For Continuation or Revision applications, you must provide the Grant Number in Field 5b (Federal Award Identifier).<br>• Find your Grant Number on your most recent Notice of Award or contact your Grants Management Specialist."
         return ValidationErrorFactory._create(
             "Grant Number is required for continuation applications.",
             "Grant Number missing for a continuation application.",
-            field_name="Federal Award Identifier",
+            field_name="Grant Number/Federal Award Identifier",
             page_number=1,
             field_location="Page 1, Field 5b",
+            guidance=guidance,
             image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
     def grant_not_found(grant_number: str) -> ValidationError:
+        guidance = "• Confirm the Grant Number is entered accurately by cross-referencing with the official grant documentation provided by the funding agency.<br>• Verify the Grant Number is currently active by using the grant search tool or database on the funding agency's portal."
         return ValidationErrorFactory._create(
             "Grant Number is not valid.",
             f"Grant lookup failed. Grant Number not found: {grant_number}.",
-            field_name="Grant Number",
+            field_name="Grant Number/Federal Award Identifier",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
+            guidance=guidance,
             image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
     def grant_ownership_mismatch(grant_number: str, uei: str) -> ValidationError:
+        guidance = "• Verify that the Grant Number entered matches the organization's UEI provided in Field 8b.<br>• If the Grant Number is correct but doesn't match the UEI, contact your Grants Management Specialist to confirm the organization associated with this grant."
         return ValidationErrorFactory._create(
             "Grant Number does not belong to the organization identified by the UEI provided.",
             f"Grant ownership mismatch. Grant Number: {grant_number}. UEI: {uei}.",
-            field_name="Grant Number",
+            field_name="Grant Number/Federal Award Identifier",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
+            guidance=guidance,
             image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
     def grant_expired(grant_number: str) -> ValidationError:
+        guidance = "• Confirm the Grant Number's project period has not ended by checking your Notice of Award or contacting your Grants Management Specialist.<br>• If the grant has expired, you may need to apply as a New application rather than a Continuation."
         return ValidationErrorFactory._create(
             "Grant Number is no longer active.",
             f"Grant is expired or inactive: {grant_number}.",
-            field_name="Grant Number",
+            field_name="Grant Number/Federal Award Identifier",
             page_number=1,
             field_location="Page 1, Field 5b",
             current_value=grant_number,
+            guidance=guidance,
             image_path="/static/images/fields/grant_number.png"
         )
 
     @staticmethod
     def grant_program_mismatch(grant_number: str, fon: str) -> ValidationError:
+        guidance = "• Verify the Funding Opportunity Number in Field 1 matches the program associated with your Grant Number in Field 5b.<br>• If applying for a different funding opportunity, ensure you're using the correct continuation grant number or apply as a New application."
         return ValidationErrorFactory._create(
             "Grant Number does not match the selected funding opportunity.",
             f"Grant and funding opportunity do not match. Grant Number: {grant_number}. Funding Opportunity Number: {fon}.",
+            field_name="Grant Number/Federal Award Identifier",
+            page_number=1,
+            field_location="Page 1, Field 5b",
+            current_value=grant_number,
+            guidance=guidance,
+            image_path="/static/images/fields/grant_number.png"
         )

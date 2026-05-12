@@ -4,7 +4,7 @@ QUERIES = {
     'validate_uei': """
         SELECT TOP 1 1 AS [Exists]
         FROM dbo.ExternalOrganizations
-        WHERE UEI = %(uei)s
+        WHERE UEI = ?
     """,
     
     'get_funding_cycle_by_code': """
@@ -16,7 +16,7 @@ QUERIES = {
             fc.applicationsupportcode AS [TypeOfAppByFO]
         FROM dbo.FundingCycles fc
         WHERE (AnnouncementNumber IS NOT NULL 
-               AND fc.AnnouncementNumber = %(announcement_number)s)
+               AND fc.AnnouncementNumber = ?)
     """,
     
     'get_organization_by_uei': """
@@ -25,7 +25,7 @@ QUERIES = {
             o.OrgName,
             o.UEI
         FROM dbo.ExternalOrganizations o
-        WHERE o.UEI = %(uei)s
+        WHERE o.UEI = ?
     """,
     
     'get_grant_by_number': """
@@ -33,7 +33,7 @@ QUERIES = {
             g.GrantId,
             g.ProgramId
         FROM dbo.Grants g
-        WHERE g.GrantNumber = %(grant_number)s
+        WHERE g.StaticGrantNumber = ?
     """,
     
     'get_active_grants_by_organization': """
@@ -54,8 +54,8 @@ QUERIES = {
         JOIN Fundingcycles FC ON fc.programid = a.programid 
         JOIN programs p ON fc.ProgramId = p.ProgramId 
             AND p.LatestInstanceFlag = 1
-        WHERE FC.FundingCycleId = %(funding_cycle_id)s
-            AND B.OrgId = %(organization_id)s
+        WHERE FC.FundingCycleId = ?
+            AND B.OrgId = ?
             AND C.ProjectPeriodEndDate > GETDATE()
         ORDER BY C.ProjectPeriodEndDate DESC
     """,
@@ -63,16 +63,16 @@ QUERIES = {
     'check_program_match': """
         SELECT g.GrantId FROM Grants g
         JOIN FundingCycles fc ON g.ProgramId = fc.ProgramId
-        WHERE g.GrantId = %(grant_id)s
-            AND fc.FundingCycleId = %(fo)s
+        WHERE g.GrantId = ?
+            AND fc.FundingCycleId = ?
     """,
     
     'find_related_applications': """
-        SELECT a.ApplicationId, a.ApplicationStatusFlag, a.ApplicationTypeCode
+        SELECT a.ApplicationId, a.ApplicationStatusFlag, a.ApplicationTypeCode, a.GrantId
         FROM ApplicationExternalOrganizations aeo
         JOIN Applications a ON a.ApplicationId = aeo.ApplicationId
-        WHERE a.FundingCycleId = %(fo)s
-            AND aeo.ExternalOrgId = %(org)s
+        WHERE a.FundingCycleId = ?
+            AND aeo.ExternalOrgId = ?
             AND a.ApplicationStatusFlag NOT IN (9, 10)
     """
 }
