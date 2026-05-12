@@ -18,7 +18,7 @@ class SF424Validator:
         Args:
             db_service: DatabaseService instance (defaults to JSON-based)
         """
-        self.db_service = db_service or DatabaseService(use_postgres=False)
+        self.db_service = db_service or DatabaseService(use_sql_server=False)
     
     def validate_pdf_structure(self, pdf_path: str) -> bool:
         """
@@ -294,22 +294,70 @@ class SF424Validator:
                 # ========================================
                 # Duplicate Application Detection
                 # ========================================
-                # Check if organization already has an active application for this funding opportunity
+                # Check if organization already has an active application for this Funding Opportunity Number (FON)
+                # For New applications: Check same FON + Same UEI + Same App Type = DUPLICATE
+                # For Continuation/Revision: Check same FON + Same UEI + Same App Type + Same Grant # = DUPLICATE
                 if uei and organization:
                     try:
+                        print(f"[DEBUG] Checking for duplicates: FON={fon}, OrgID={organization.organization_id}, FundingCycleID={funding_opportunity.funding_cycle_id}")
+                        
                         # Find existing applications for this org + funding opportunity combination
                         existing_apps = self.db_service.find_related_applications(
                             fo=funding_opportunity.funding_cycle_id,
                             org=organization.organization_id
                         )
                         
+                        print(f"[DEBUG] Found {len(existing_apps) if existing_apps else 0} existing applications")
+                        
                         if existing_apps:
-                            # Use ValidationErrorFactory (no longer exposes application IDs)
-                            app_type = form_data.get('application_type', 'New')
-                            errors.append(ValidationErrorFactory.duplicate_application(fon, app_type))
+                            # Get current application details
+                            app_type_raw = form_data.get('application_type', 'New')
+                            app_type_normalized = self._normalize_application_type(app_type_raw)
+                            federal_award_identifier = form_data.get('federal_award_identifier')
+                            
+                            print(f"[DEBUG] Current app type: {app_type_raw} (normalized: {app_type_normalized})")
+                            
+                            # Check for duplicates based on application type
+                            is_duplicate = False
+                            
+                            if app_type_normalized == "1":  # New application
+                                # For New: Check if any existing app is also type 1 (New)
+                                for app in existing_apps:
+                                    print(f"[DEBUG] Checking existing app: ID={app['application_id']}, TypeCode={app['application_type_code']}, Status={app['application_status_flag']}, GrantID={app.get('grant_id', 'None')}")
+                                    if app['application_type_code'] == 1:  # ApplicationTypeCode = 1 (New)
+                                        print(f"[DEBUG] DUPLICATE FOUND: Another 'New' application exists (AppID={app['application_id']})")
+                                        is_duplicate = True
+                                        break
+                            
+                            elif app_type_normalized in ["2", "3"]:  # Continuation or Revision
+                                # For Continuation/Revision: Check same application type AND same grant
+                                if federal_award_identifier:
+                                    # Get the grant ID for the current grant number
+                                    current_grant = self.db_service.get_grant_by_number(federal_award_identifier)
+                                    if current_grant:
+                                        current_grant_id = current_grant.get('grant_id')
+                                        target_app_type = 2 if app_type_normalized == "2" else 3
+                                        
+                                        print(f"[DEBUG] Current grant ID: {current_grant_id}, Target app type: {target_app_type}")
+                                        
+                                        for app in existing_apps:
+                                            print(f"[DEBUG] Checking existing app: ID={app['application_id']}, TypeCode={app['application_type_code']}, GrantID={app.get('grant_id', 'None')}")
+                                            # Check if same application type AND same grant
+                                            if app['application_type_code'] == target_app_type and app.get('grant_id') == current_grant_id:  # ApplicationTypeCode and GrantId
+                                                print(f"[DEBUG] DUPLICATE FOUND: Same type + same grant (AppID={app['application_id']})")
+                                                is_duplicate = True
+                                                break
+                            
+                            if is_duplicate:
+                                print(f"[DEBUG] Adding duplicate application error")
+                                errors.append(ValidationErrorFactory.duplicate_application(fon, app_type_raw))
+                            else:
+                                print(f"[DEBUG] No duplicate detected")
                     except Exception as e:
                         # Log error but don't fail validation - duplicate check is supplementary
-                        print(f"Warning: Duplicate detection check failed: {str(e)}")
+                        print(f"[ERROR] Duplicate detection check failed: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
         
         # ========================================
         # Continuation Application Grant Validation
