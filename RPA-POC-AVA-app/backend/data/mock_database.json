@@ -225,7 +225,9 @@
       "grants_gov_tracking_no": "TRACK-2026-001",
       "application_status_flag": "1",
       "application_type_code": "1",
-      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f"
+      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
+      "grant_id": null,
+      "_comment": "New app for Community Health Partners (J8TRGXM39KL5) on HRSA-26-091"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440002",
@@ -233,7 +235,8 @@
       "grants_gov_tracking_no": "TRACK-2026-002",
       "application_status_flag": "1",
       "application_type_code": "1",
-      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a"
+      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+      "grant_id": null
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440003",
@@ -241,7 +244,8 @@
       "grants_gov_tracking_no": "TRACK-2026-003",
       "application_status_flag": "1",
       "application_type_code": "1",
-      "funding_cycle_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b"
+      "funding_cycle_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
+      "grant_id": null
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440004",
@@ -249,7 +253,9 @@
       "grants_gov_tracking_no": "TRACK-2026-004",
       "application_status_flag": "10",
       "application_type_code": "2",
-      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c"
+      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "grant_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
+      "_comment": "Withdrawn - status 10 means excluded from duplicate check"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440005",
@@ -257,7 +263,8 @@
       "grants_gov_tracking_no": "TRACK-2026-005",
       "application_status_flag": "1",
       "application_type_code": "1",
-      "funding_cycle_id": "a7b8c9d0-e1f2-4a5b-4c5d-6e7f8a9b0c1d"
+      "funding_cycle_id": "a7b8c9d0-e1f2-4a5b-4c5d-6e7f8a9b0c1d",
+      "grant_id": null
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440006",
@@ -265,7 +272,9 @@
       "grants_gov_tracking_no": "TRACK-2026-006",
       "application_status_flag": "2",
       "application_type_code": "1",
-      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f"
+      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
+      "grant_id": null,
+      "_comment": "DUPLICATE NEW: Same FON (HRSA-26-091) + Same Org (via org mapping) + Both Type 1 = Should trigger duplicate error"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440007",
@@ -273,7 +282,8 @@
       "grants_gov_tracking_no": "TRACK-2026-007",
       "application_status_flag": "1",
       "application_type_code": "3",
-      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a"
+      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+      "grant_id": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440008",
@@ -281,7 +291,8 @@
       "grants_gov_tracking_no": "TRACK-2026-008",
       "application_status_flag": "1",
       "application_type_code": "2",
-      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c"
+      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "grant_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440009",
@@ -289,7 +300,9 @@
       "grants_gov_tracking_no": "TRACK-2026-009",
       "application_status_flag": "9",
       "application_type_code": "2",
-      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c"
+      "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "grant_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
+      "_comment": "Rejected - status 9 means excluded from duplicate check"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440010",
@@ -297,7 +310,8 @@
       "grants_gov_tracking_no": "TRACK-2026-010",
       "application_status_flag": "1",
       "application_type_code": "2",
-      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a"
+      "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+      "grant_id": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440011",
@@ -305,7 +319,19 @@
       "grants_gov_tracking_no": "TRACK-2026-011",
       "application_status_flag": "1",
       "application_type_code": "2",
-      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f"
+      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
+      "grant_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "_comment": "Continuation for Community Health Partners (J8TRGXM39KL5) with grant H80CS67890"
+    },
+    {
+      "application_id": "550e8400-e29b-41d4-a716-446655440012",
+      "grants_gov_application_id": "GRANT-2026-012",
+      "grants_gov_tracking_no": "TRACK-2026-012",
+      "application_status_flag": "1",
+      "application_type_code": "2",
+      "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
+      "grant_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
+      "_comment": "DUPLICATE CONTINUATION: Same FON + Same Org + Same Type (2) + Same Grant (H80CS67890) = Should trigger duplicate error"
     }
   ],
   "application_external_organizations": [
@@ -331,7 +357,8 @@
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440006",
-      "external_org_id": "f6a7b8c9-d0e1-4f5a-2a3b-4c5d6e7f8a9b"
+      "external_org_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "_comment": "Same org as app 001 (Community Health Partners) to test New duplicate: both are Type 1, same FON (HRSA-26-091)"
     },
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440007",
@@ -352,6 +379,11 @@
     {
       "application_id": "550e8400-e29b-41d4-a716-446655440011",
       "external_org_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d"
+    },
+    {
+      "application_id": "550e8400-e29b-41d4-a716-446655440012",
+      "external_org_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "_comment": "Same org as app 011 - Community Health Partners (J8TRGXM39KL5) - to test continuation duplicate"
     }
   ]
 }
