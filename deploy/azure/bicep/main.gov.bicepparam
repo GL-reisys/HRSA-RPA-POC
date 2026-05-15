@@ -19,8 +19,8 @@ param azureOpenAiEndpoint   = 'https://your-openai-gov.openai.azure.us/' // TODO
 param azureOpenAiDeployment = 'gpt-4'
 
 // Container images - must already exist in the registry (push them after ACR is provisioned)
-param frontendImage = 'creusdgpsehbssecrpa.azurecr.us/ehbs-frontend:latest-sec'
-param backendImage  = 'creusdgpsehbssecrpa.azurecr.us/ehbs-backend:latest-sec' 
+param frontendImage = 'creusdgpsehbssecrpa.azurecr.us/ehbs-#{environmentName}-frontend:latest'
+param backendImage  = 'creusdgpsehbssecrpa.azurecr.us/ehbs-#{environmentName}-backend:latest' 
 param frontendTargetPort = 3000
 param backendTargetPort  = 5000
 
