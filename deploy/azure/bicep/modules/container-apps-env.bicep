@@ -22,7 +22,6 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existin
   scope: resourceGroup(split(logAnalyticsWorkspaceId, '/')[4])
 }
 
-// TODO: check this again the logAnalyticsConfiguration 
 resource managedEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: name
   location: location

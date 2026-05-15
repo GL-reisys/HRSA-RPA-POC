@@ -13,28 +13,16 @@ param privateEndpointSubnetId = '' // Private endpoint subnet (no delegation req
 param logAnalyticsWorkspaceId = '' // Pre-existing Log Analytics workspace resource ID
 param location = 'eastus' // Azure region
 param regionAbbr = 'eus' // Region abbreviation (eus, wus, usgv, etc.)
-param deploymentEnvironment = 'sec' // Environment: dev, utl01, uat02, sec, prod
-param environmentName = 'prod' // Tag value: dev, sbx, nonprod, prod
+param deploymentEnvironment = 'sbx02' // Environment: dev, utl01, uat02, sec, prod
+param environmentName = 'sbx' // Tag value: dev, sbx, nonprod, prod
 param azureOpenAiEndpoint   = 'https://your-openai-gov.openai.azure.us/' // TODO: check with OM whether they can create Open AI and provide us the endpoints
 param azureOpenAiDeployment = 'gpt-4'
-
-// Naming convention: {service-abbr}-{region}-dgps-ehbs-{env}-rpa
-// Generated names:
-// - Container Registry: creusdgpsehbssecrpa (alphanumeric only)
-// - Container Apps: ca-eus-dgps-ehbs-sec-rpa-frontend, ca-eus-dgps-ehbs-sec-rpa-backend
-// - Container App Environment: cae-eus-dgps-ehbs-sec-rpa
-// - Managed Identity: mi-eus-dgps-ehbs-sec-rpa
-// - Log Analytics: law-eus-dgps-ehbs-sec-rpa
-// - Application Insights: appi-eus-dgps-ehbs-sec-rpa
 
 // Container images - must already exist in the registry (push them after ACR is provisioned)
 param frontendImage = 'creusdgpsehbssecrpa.azurecr.us/ehbs-frontend:latest-sec'
 param backendImage  = 'creusdgpsehbssecrpa.azurecr.us/ehbs-backend:latest-sec' 
-
 param frontendTargetPort = 3000
 param backendTargetPort  = 5000
-
-// Azure OpenAI configuration (uses managed identity authentication)
 
 // Internal app — no public origins. Add the env's default domain if browser CORS calls
 // will originate from a different subdomain of the same env.
