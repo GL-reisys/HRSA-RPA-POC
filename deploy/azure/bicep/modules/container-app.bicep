@@ -40,11 +40,9 @@ param maxReplicas int = 3
 @description('Plain environment variables. Items: { name, value }.')
 param envVars array = []
 
-@description('Secrets to register on the Container App. Items: { name, value } (value is @secure on the parent).')
+@description('Secrets to register on the Container App. Must be { items: [ { name, value }, ... ] }; pass { items: [] } if none.')
 @secure()
-param secrets object = {
-  items: []
-}
+param secrets object
 
 @description('Env vars sourced from secrets. Items: { name, secretRef }.')
 param secretEnvVars array = []

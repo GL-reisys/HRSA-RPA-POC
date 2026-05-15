@@ -290,6 +290,9 @@ module frontendApp 'modules/container-app.bicep' = {
         value: 'https://${backendApp.outputs.fqdn}'
       }
     ]
+    secrets: {
+      items: []
+    }
     tags: tags
   }
 }
