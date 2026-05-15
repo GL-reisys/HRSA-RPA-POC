@@ -52,27 +52,33 @@ param secretEnvVars array = []
 @description('Resource tags.')
 param tags object
 
-var acrPullRoleDefinitionId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+@description('Managed Identity resource ID (optional - will create new if not provided)')
+param managedIdentityId string = ''
 
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+@description('Application Insights connection string (optional)')
+param appInsightsConnectionString string = ''
+
+var shouldCreateManagedIdentity = empty(managedIdentityId)
+
+// Create new managed identity if not provided
+resource newManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (shouldCreateManagedIdentity) {
   name: '${name}-mi'
   location: location
   tags: tags
 }
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
-  name: last(split(acrId, '/'))
+// Reference existing managed identity if provided
+resource existingManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = if (!shouldCreateManagedIdentity) {
+  name: last(split(managedIdentityId, '/'))
+  scope: resourceGroup(split(managedIdentityId, '/')[4])
 }
 
-resource acrPullAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: acr
-  name: guid(acr.id, managedIdentity.id, acrPullRoleDefinitionId)
-  properties: {
-    principalId: managedIdentity.properties.principalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleDefinitionId)
-    principalType: 'ServicePrincipal'
-  }
-}
+// Use the appropriate managed identity
+var actualManagedIdentityId = shouldCreateManagedIdentity ? newManagedIdentity.id : existingManagedIdentity.id
+var actualManagedIdentityPrincipalId = shouldCreateManagedIdentity ? newManagedIdentity.properties.principalId : existingManagedIdentity.properties.principalId
+
+// Note: RBAC assignments (including AcrPull) must be configured outside BICEP
+// See RELEASE.md for required role assignments
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -81,7 +87,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${managedIdentity.id}': {}
+      '${actualManagedIdentityId}': {}
     }
   }
   properties: {
@@ -103,10 +109,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: acrLoginServer
-          identity: managedIdentity.id
+          identity: actualManagedIdentityId
         }
       ]
       secrets: secrets.items
+      dapr: !empty(appInsightsConnectionString) ? {
+        enabled: false
+      } : null
     }
     template: {
       containers: [
@@ -117,7 +126,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: concat(envVars, secretEnvVars)
+          env: concat(envVars, secretEnvVars, !empty(appInsightsConnectionString) ? [
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionString
+            }
+          ] : [])
         }
       ]
       scale: {
@@ -126,11 +140,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [
-    acrPullAssignment
-  ]
 }
 
 output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output containerAppId string = containerApp.id
-output identityPrincipalId string = managedIdentity.properties.principalId
+output identityPrincipalId string = actualManagedIdentityPrincipalId
+output managedIdentityId string = actualManagedIdentityId

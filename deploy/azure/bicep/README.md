@@ -5,23 +5,26 @@ Provisions a fully private deployment of HRSA-RPA-AVA into an Azure Government s
 ## Topology
 
 ```
-                   Resource Group
+                   Pre-existing VNet (created outside BICEP)
                    ┌──────────────────────────────────────────────┐
-                   │  VNet (10.40.0.0/20)                          │
-                   │   ├── infrastructure   (10.40.0.0/23)         │
+                   │  VNet (e.g., 10.40.0.0/20)                    │
+                   │   ├── infrastructure subnet (min /23)         │
                    │   │     └── Container Apps managed env        │
                    │   │           internal=true, no public IP     │
                    │   │           ├── frontend (ingress.external) │
                    │   │           └── backend  (internal only)    │
-                   │   └── private-endpoints (10.40.2.0/26)        │
+                   │   └── private-endpoints subnet                │
                    │         └── ACR private endpoint              │
-                   │                                               │
+                   └──────────────────────────────────────────────┘
+                   
+                   Resource Group (BICEP creates these)
+                   ┌──────────────────────────────────────────────┐
                    │  ACR (Premium, publicNetworkAccess=Disabled)  │
+                   │  Container Apps Environment                   │
+                   │  Container Apps (frontend, backend)           │
                    │  Log Analytics workspace                      │
-                   │  Private DNS zones                            │
-                   │   ├── privatelink.azurecr.us → ACR PE         │
-                   │   └── <env>.<region>.azurecontainerapps.us    │
-                   │         (*  -> env static IP)                 │
+                   │  Application Insights                         │
+                   │  Managed Identity                             │
                    └──────────────────────────────────────────────┘
 ```
 
@@ -29,43 +32,70 @@ Provisions a fully private deployment of HRSA-RPA-AVA into an Azure Government s
 
 | File | Purpose |
 | --- | --- |
+| `README.md` | This file - deployment instructions and prerequisites. |
+| `RELEASE.md` | Release notes and change history. |
 | `main.bicep` | Top-level template, wires modules together. |
 | `main.gov.bicepparam` | Example parameter file with Azure Gov defaults. |
 | `deploy.sh` | Validates, runs `what-if`, and deploys. |
-| `modules/network.bicep` | VNet, two subnets, NSGs. |
-| `modules/acr.bicep` | Premium ACR with public access disabled. |
-| `modules/private-endpoint.bicep` | Generic PE + DNS zone group. |
-| `modules/private-dns-zone.bicep` | Private DNS zone + VNet link + optional A records. |
+| **Modules** | |
+| `modules/acr.bicep` | Premium ACR with integrated private endpoint. |
 | `modules/container-apps-env.bicep` | Internal Container Apps environment. |
 | `modules/container-app.bicep` | One Container App + user-assigned MI with AcrPull. |
+| **Shared Modules** (EHBs-IaC Pattern) | |
+| `shared/managed-identity/main.bicep` | Managed identity (create new or use existing). |
+| `shared/application-insights/main.bicep` | Application Insights with Log Analytics. |
 
 ## Prereqs
 
-1. Azure CLI pointed at the Gov cloud:
+1. **VNet and subnets created outside of this deployment:**
+   - **Infrastructure subnet** for Container Apps:
+     - Minimum /23 CIDR (e.g., 10.40.0.0/23)
+     - **Must be delegated to `Microsoft.App/environments`**
+     - Command to delegate:
+       ```bash
+       az network vnet subnet update \
+         --resource-group <rg> \
+         --vnet-name <vnet> \
+         --name <subnet-name> \
+         --delegations Microsoft.App/environments
+       ```
+   - **Private endpoints subnet**:
+     - No delegation required
+     - Recommended /26 or larger (e.g., 10.40.2.0/26)
+   - Subnet IDs will be passed as parameters to the BICEP deployment
+   
+2. Azure CLI pointed at the Gov cloud:
    ```bash
    az cloud set --name AzureUSGovernment
    az login
    az account set --subscription <gov-subscription-id>
    ```
-2. Resource group exists in your chosen Gov region (`usgovvirginia`, `usgovtexas`, `usgovarizona`, or `usgoviowa`):
+3. Resource group exists in your chosen Gov region (`usgovvirginia`, `usgovtexas`, `usgovarizona`, or `usgoviowa`):
    ```bash
    az group create --name RG-HRSA-RPA-AVA-PRIV --location usgovvirginia
    ```
-3. Resource providers registered on the subscription. The deploy script handles this, but you can do it manually:
+4. Resource providers registered on the subscription. The deploy script handles this, but you can do it manually:
    ```bash
    az provider register --namespace Microsoft.App --wait
    az provider register --namespace Microsoft.OperationalInsights --wait
    az provider register --namespace Microsoft.ContainerRegistry --wait
    ```
-4. Container Apps must be GA in your chosen Gov region. Verify with `az provider show --namespace Microsoft.App --query "resourceTypes[?resourceType=='managedEnvironments'].locations" -o tsv`.
+5. Container Apps must be GA in your chosen Gov region. Verify with `az provider show --namespace Microsoft.App --query "resourceTypes[?resourceType=='managedEnvironments'].locations" -o tsv`.
 
 ## Deploy
 
-1. Edit `main.gov.bicepparam` — set `namePrefix`, `acrName`, region, and Azure OpenAI endpoint to your values.
+1. Edit `main.gov.bicepparam` — set subnet IDs, `namePrefix`, `acrName`, region, and Azure OpenAI endpoint to your values.
 2. Run the script (it does validate → what-if → confirm → deploy):
    ```bash
-   export AZURE_OPENAI_API_KEY=...
    ./deploy.sh RG-HRSA-RPA-AVA-PRIV
+   ```
+   
+   Or deploy directly:
+   ```bash
+   az deployment group create \
+     --resource-group RG-HRSA-RPA-AVA-PRIV \
+     --template-file main.bicep \
+     --parameters main.gov.bicepparam
    ```
 
 ## After the first deploy: build and push images
@@ -90,6 +120,41 @@ ACR has `publicNetworkAccess=Disabled`, so you cannot push from your laptop unle
 - A self-hosted runner / jumpbox attached to the VNet that runs `docker push` over the private endpoint.
 
 After images are in ACR, redeploy (or `az containerapp update --image ...`) to roll the new revisions.
+
+## Post-Deployment: Configure RBAC (Required)
+
+**Critical**: The application uses **managed identity authentication** (no API keys). You **must** configure RBAC before the application will function.
+
+The deployment does NOT configure any RBAC assignments. Configure the following role assignments manually:
+
+### Required RBAC Assignments
+
+| Resource | Role | Purpose |
+|----------|------|---------|
+| Azure Container Registry | `AcrPull` | Pull container images |
+| Azure OpenAI | `Cognitive Services OpenAI User` | Access OpenAI API (managed identity auth) |
+
+### Configuration Commands
+
+```bash
+# Get Managed Identity Principal ID from deployment output
+PRINCIPAL_ID=$(az deployment group show \
+  --resource-group RG-HRSA-RPA-AVA-PRIV \
+  --name <deployment-name> \
+  --query properties.outputs.managedIdentityPrincipalId.value -o tsv)
+
+# Grant AcrPull to ACR
+az role assignment create \
+  --assignee $PRINCIPAL_ID \
+  --role "AcrPull" \
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.ContainerRegistry/registries/<acr-name>
+
+# Grant access to Azure OpenAI
+az role assignment create \
+  --assignee $PRINCIPAL_ID \
+  --role "Cognitive Services OpenAI User" \
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<openai-name>
+```
 
 ## Accessing the app
 

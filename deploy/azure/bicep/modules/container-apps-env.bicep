@@ -11,16 +11,18 @@ param name string
 @description('Subnet ID for environment infrastructure. Must be /23 or larger for Consumption-only.')
 param infrastructureSubnetId string
 
-@description('Log Analytics workspace name (same resource group).')
-param logAnalyticsWorkspaceName string
+@description('Log Analytics workspace resource ID.')
+param logAnalyticsWorkspaceId string
 
 @description('Resource tags.')
 param tags object
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
-  name: logAnalyticsWorkspaceName
+  name: last(split(logAnalyticsWorkspaceId, '/'))
+  scope: resourceGroup(split(logAnalyticsWorkspaceId, '/')[4])
 }
 
+// TODO: check this again the logAnalyticsConfiguration 
 resource managedEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: name
   location: location
