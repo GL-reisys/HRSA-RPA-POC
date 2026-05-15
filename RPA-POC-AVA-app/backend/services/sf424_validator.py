@@ -324,7 +324,9 @@ class SF424Validator:
                                 # For New: Check if any existing app is also type 1 (New)
                                 for app in existing_apps:
                                     print(f"[DEBUG] Checking existing app: ID={app['application_id']}, TypeCode={app['application_type_code']}, Status={app['application_status_flag']}, GrantID={app.get('grant_id', 'None')}")
-                                    if app['application_type_code'] == 1:  # ApplicationTypeCode = 1 (New)
+                                    # Convert to int for comparison (handles both string and int from different sources)
+                                    existing_app_type = int(app['application_type_code']) if app['application_type_code'] else 0
+                                    if existing_app_type == 1:  # ApplicationTypeCode = 1 (New)
                                         print(f"[DEBUG] DUPLICATE FOUND: Another 'New' application exists (AppID={app['application_id']})")
                                         is_duplicate = True
                                         break
@@ -342,8 +344,10 @@ class SF424Validator:
                                         
                                         for app in existing_apps:
                                             print(f"[DEBUG] Checking existing app: ID={app['application_id']}, TypeCode={app['application_type_code']}, GrantID={app.get('grant_id', 'None')}")
+                                            # Convert to int for comparison (handles both string and int from different sources)
+                                            existing_app_type = int(app['application_type_code']) if app['application_type_code'] else 0
                                             # Check if same application type AND same grant
-                                            if app['application_type_code'] == target_app_type and app.get('grant_id') == current_grant_id:  # ApplicationTypeCode and GrantId
+                                            if existing_app_type == target_app_type and app.get('grant_id') == current_grant_id:  # ApplicationTypeCode and GrantId
                                                 print(f"[DEBUG] DUPLICATE FOUND: Same type + same grant (AppID={app['application_id']})")
                                                 is_duplicate = True
                                                 break

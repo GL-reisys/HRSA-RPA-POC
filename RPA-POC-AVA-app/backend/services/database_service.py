@@ -332,7 +332,8 @@ class DatabaseService:
                                 results.append({
                                     'application_id': app.get('application_id'),
                                     'application_status_flag': app.get('application_status_flag'),
-                                    'application_type_code': app.get('application_type_code')
+                                    'application_type_code': app.get('application_type_code'),
+                                    'grant_id': app.get('grant_id')
                                 })
                             break
             return results
