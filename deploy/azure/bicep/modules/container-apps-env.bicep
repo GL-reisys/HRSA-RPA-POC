@@ -11,15 +11,21 @@ param name string
 @description('Subnet ID for environment infrastructure. Must be /23 or larger for Consumption-only.')
 param infrastructureSubnetId string
 
-@description('Log Analytics workspace resource ID.')
+@description('Log Analytics workspace. Accepts a full resource ID (/subscriptions/.../workspaces/<name>) or a bare workspace name in the current resource group.')
 param logAnalyticsWorkspaceId string
 
 @description('Resource tags.')
 param tags object
 
+var workspaceIdParts = split(logAnalyticsWorkspaceId, '/')
+var workspaceIsFullId = length(workspaceIdParts) >= 9
+var workspaceName = workspaceIsFullId ? last(workspaceIdParts) : logAnalyticsWorkspaceId
+var workspaceSubscriptionId = workspaceIsFullId ? workspaceIdParts[2] : subscription().subscriptionId
+var workspaceResourceGroup = workspaceIsFullId ? workspaceIdParts[4] : resourceGroup().name
+
 resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
-  name: last(split(logAnalyticsWorkspaceId, '/'))
-  scope: resourceGroup(split(logAnalyticsWorkspaceId, '/')[4])
+  name: workspaceName
+  scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroup)
 }
 
 resource managedEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {

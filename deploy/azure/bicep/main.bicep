@@ -69,6 +69,9 @@ param azureOpenAiDeployment string = 'gpt-4'
 @description('CORS allowed origins for the backend (comma-separated).')
 param corsAllowedOrigins string = ''
 
+@description('Wire ACR into container app `registries` config. Set false to deploy with public images (e.g. mcr.microsoft.com) without needing AcrPull/ACR access.')
+param useAcrRegistry bool = true
+
 @description('Create Application Insights')
 param createApplicationInsights bool = true
 
@@ -85,8 +88,8 @@ param appInsightsPublicNetworkAccessForQuery string = 'Enabled'
 // Naming convention: {service-abbr}-{region}-dgps-ehbs-{env}-rpa
 var baseResourceName = '${regionAbbr}-dgps-ehbs-${deploymentEnvironment}-rpa'
 var resourceNames = {
-  containerAppFrontend: 'ca-${baseResourceName}-frontend'
-  containerAppBackend: 'ca-${baseResourceName}-backend'
+  containerAppFrontend: 'ca-${baseResourceName}-ui'
+  containerAppBackend: 'ca-${baseResourceName}-svc'
   containerAppEnvironment: 'cae-${baseResourceName}'
   containerRegistry: 'cr${replace(baseResourceName, '-', '')}' // ACR requires alphanumeric only
   managedIdentity: 'id-${baseResourceName}'
@@ -195,6 +198,7 @@ module backendApp 'modules/container-app.bicep' = {
     image: backendImage
     targetPort: backendTargetPort
     ingressExternal: false
+    useAcrRegistry: useAcrRegistry
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1
@@ -258,6 +262,7 @@ module frontendApp 'modules/container-app.bicep' = {
     image: frontendImage
     targetPort: frontendTargetPort
     ingressExternal: true
+    useAcrRegistry: useAcrRegistry
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1

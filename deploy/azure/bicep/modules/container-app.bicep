@@ -58,6 +58,9 @@ param managedIdentityId string = ''
 @description('Application Insights connection string (optional)')
 param appInsightsConnectionString string = ''
 
+@description('Wire the ACR into the container app `registries` config (required for private ACR pulls; set false when using a public registry like mcr.microsoft.com).')
+param useAcrRegistry bool = true
+
 var shouldCreateManagedIdentity = empty(managedIdentityId)
 
 // Create new managed identity if not provided
@@ -67,10 +70,16 @@ resource newManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@20
   tags: tags
 }
 
-// Reference existing managed identity if provided
+// Reference existing managed identity if provided. Accepts a full resource ID or a bare name in the current RG.
+var managedIdentityIdParts = split(managedIdentityId, '/')
+var managedIdentityIsFullId = length(managedIdentityIdParts) >= 9
+var existingManagedIdentityName = managedIdentityIsFullId ? last(managedIdentityIdParts) : managedIdentityId
+var existingManagedIdentitySubscriptionId = managedIdentityIsFullId ? managedIdentityIdParts[2] : subscription().subscriptionId
+var existingManagedIdentityResourceGroup = managedIdentityIsFullId ? managedIdentityIdParts[4] : resourceGroup().name
+
 resource existingManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = if (!shouldCreateManagedIdentity) {
-  name: last(split(managedIdentityId, '/'))
-  scope: resourceGroup(split(managedIdentityId, '/')[4])
+  name: existingManagedIdentityName
+  scope: resourceGroup(existingManagedIdentitySubscriptionId, existingManagedIdentityResourceGroup)
 }
 
 // Use the appropriate managed identity
@@ -106,12 +115,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
         ]
       }
-      registries: [
+      registries: useAcrRegistry ? [
         {
           server: acrLoginServer
           identity: actualManagedIdentityId
         }
-      ]
+      ] : []
       secrets: secrets.items
       dapr: !empty(appInsightsConnectionString) ? {
         enabled: false
