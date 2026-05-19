@@ -6,6 +6,8 @@ services:
     container_name: rpa-poc-backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env 
     volumes:
       - backend-uploads:/app/uploads
       - backend-database:/app/database
