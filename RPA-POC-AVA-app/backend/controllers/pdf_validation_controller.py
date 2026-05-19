@@ -7,18 +7,24 @@ from services.form_mapper import FormMapper
 from services.sf424_validator import SF424Validator
 from services.ai_service import AIService
 from services.session_manager import SessionManager
+from config.runtime import resolve_app_path
 from datetime import datetime
 
 pdf_bp = Blueprint('pdf', __name__)
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'uploads')
+# Must match the path used by app.py when constructing the SessionManager,
+# otherwise scheduled cleanup and orphan sweep won't see these files.
+UPLOAD_FOLDER = resolve_app_path(os.getenv('TEMP_UPLOAD_PATH'), 'data/uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 extractor = XFAPdfExtractor()
 mapper = FormMapper()
 validator = SF424Validator()
 ai_service = AIService()
-session_manager = SessionManager('data/sessions.json')
+session_manager = SessionManager(
+    resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json'),
+    upload_folder=UPLOAD_FOLDER,
+)
 
 @pdf_bp.route('/api/pdf/upload', methods=['POST'])
 def upload_pdf():
