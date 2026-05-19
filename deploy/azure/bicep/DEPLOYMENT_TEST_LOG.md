@@ -176,6 +176,53 @@ Setting `useAcrRegistry=false` removes the ACR-linkage from the `registries` con
 
 ---
 
+### 9. ACA private DNS zone is NOT auto-created in this subscription
+
+**Symptom:** From a jumpbox VM inside the same VNet as the ACA env, browser/SOCKS connections to the frontend FQDN failed with `channel N: open failed: connect failed: Name or service not known`. The jumpbox resolver returned NXDOMAIN for `<env-default-domain>` even though the env was internal and in the same VNet.
+
+**Cause:** An internal Container Apps environment is *supposed* to auto-create a private DNS zone for its `defaultDomain` (e.g. `salmonriver-d05a35ea.eastus2.azurecontainerapps.io`) and auto-link it to the infrastructure-subnet VNet. In this test deploy, **no such private DNS zone exists in the subscription** (`az network private-dns zone list` returns `[]`). Likely causes:
+- The subscription has an Azure Policy that blocks `Microsoft.Network/privateDnsZones` creation (common in Gov / regulated subs).
+- The deploying principal lacks `Microsoft.Network/privateDnsZones/write` and the auto-create silently no-op'd.
+- A previously-orphaned zone was hard-deleted; the env keeps cached references.
+
+**Workaround used for the test (jumpbox):** Manually added `/etc/hosts` entries on the jumpbox pointing both the frontend and backend FQDNs to the env's `staticIp` (`10.50.0.200`). The env's ingress routes by `Host:` header, so a single IP serves both apps.
+
+**Required for production (template doesn't currently handle this):**
+
+The bicep should **explicitly create the private DNS zone and link it to the VNet** rather than relying on auto-create. Add to `modules/container-apps-env.bicep` (or a new `private-dns.bicep` module) something like:
+
+```bicep
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: managedEnv.properties.defaultDomain
+  location: 'global'
+}
+
+resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: 'link-${last(split(infrastructureSubnetId, '/'))}'  // unique per VNet
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: <vnet-id-derived-from-subnet> }
+    registrationEnabled: false
+  }
+}
+
+resource appWildcardRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = {
+  parent: privateDnsZone
+  name: '*'
+  properties: {
+    ttl: 3600
+    aRecords: [ { ipv4Address: managedEnv.properties.staticIp } ]
+  }
+}
+```
+
+The same zone (or equivalent records) must also be **linked to every peered VNet** that needs to reach the apps (EHB Web, EHB DB per OIT requirement).
+
+**Recommendation:** Add this as an explicit step in the deployment, both because auto-create is unreliable and because Gov subs often block the silent path entirely.
+
+---
+
 ## What ended up working
 
 In the sandbox subscription, with all the fixes above applied and using `useAcrRegistry=false` + public test images, the full stack deployed and both apps reached `Healthy`:
@@ -204,6 +251,70 @@ All sandbox test resources were deleted after verification.
 | 7 | Get an Azure OpenAI endpoint provisioned (currently a placeholder in [main.gov.bicepparam:18](main.gov.bicepparam#L18)) | OM / App team |
 | 8 | Octopus pipeline: ensure ACR push step completes before the Bicep deploy step (apps fail to pull otherwise) | DevOps / App team |
 | 9 | Tighten parameter validation in the template (min-length on string params; sized constraint on `deploymentEnvironment`) | App team |
+| 10 | Explicitly create the ACA private DNS zone in Bicep (auto-create is unreliable; see [issue 9](#9-aca-private-dns-zone-is-not-auto-created-in-this-subscription)). Link it to the deploy VNet **and** to each peered VNet that needs to resolve the apps. | App + Network team |
+
+---
+
+## Production deployment scripts (added after testing)
+
+To roll the lessons above into the actual pipeline, two one-shot orchestrators
+were added. They are intended to be the *only* entry point Octopus invokes
+after it has built the image and pushed the TAR to ACR.
+
+| Script | Use from |
+|---|---|
+| [deploy-prod.sh](deploy-prod.sh)   | bash (Linux Octopus workers, manual macOS/WSL test) |
+| [deploy-prod.ps1](deploy-prod.ps1) | PowerShell 5.1+/7+ (Windows Octopus workers) |
+
+Both scripts do the same thing, with identical input variables and exit codes:
+
+1. **Preflight (fails fast):**
+   - All required inputs present (no leftover `#{...}` tokens).
+   - Container app name ≤32 chars (catches issue 4 from above before ARM sees it).
+   - Logged into Azure, correct subscription set, Gov cloud matches Gov location.
+   - All required resource providers registered.
+   - Infrastructure subnet is `/23` or larger and delegated `Microsoft.App/environments`.
+   - Private-endpoint subnet exists.
+2. **Bicep deploy:** `validate` → `what-if` → `create`, with parameters passed
+   inline (so Octopus's `#{...}` token substitution and Bicep's `${...}`
+   interpolation both work and don't fight).
+3. **Post-deploy** (the stuff not in the bicep, surfaced by issues 7 & 9):
+   - Grants `AcrPull` on the deployed ACR to the deployed managed identity.
+     If RBAC fails, prints the exact command for a User Access Administrator
+     to run and continues.
+   - Provisions the ACA env's private DNS zone *explicitly* (auto-create is
+     unreliable — see issue 9). Wildcard `A` record → env static IP.
+   - Links the zone to the deploy VNet **and** every VNet in
+     `PEERED_VNET_IDS` (the EHB Web/DB requirement from OIT).
+4. **Verification:** polls until both apps report `Running` + `Healthy`, or
+   exits with a clear warning after 5 minutes.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Deploy succeeded end-to-end. |
+| 1 | Preflight failure — nothing was deployed. |
+| 2 | Bicep deploy failed. |
+| 3 | Bicep succeeded but a post-deploy step needs attention (RBAC, DNS link, or health check). |
+
+The non-zero exit codes are meant to be distinguishable by Octopus so the
+runbook can branch on them (e.g. fail-the-release vs. notify-and-continue).
+
+### Required environment variables (or Octopus tokens)
+
+`SUBSCRIPTION`, `RESOURCE_GROUP`, `LOCATION`, `REGION_ABBR`,
+`DEPLOYMENT_ENVIRONMENT`, `ENVIRONMENT_NAME`,
+`INFRA_SUBNET_ID`, `PE_SUBNET_ID`, `LAW_ID`,
+`ACR_LOGIN_SERVER`, `FRONTEND_IMAGE_TAG`, `BACKEND_IMAGE_TAG`,
+`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`.
+
+Optional: `CORS_ALLOWED_ORIGINS`, `PEERED_VNET_IDS` (space-separated full
+resource IDs of EHB Web/DB VNets).
+
+The `.EXAMPLE` block at the top of [deploy-prod.ps1](deploy-prod.ps1) and
+the comment block at the top of [deploy-prod.sh](deploy-prod.sh) have
+copy-paste-ready setup blocks for manual runs.
 
 ---
 
@@ -215,6 +326,8 @@ All sandbox test resources were deleted after verification.
 | [modules/container-app.bicep](modules/container-app.bicep) | Made `registries` config conditional on `useAcrRegistry`. Also accepts bare-name `managedIdentityId` (not just full resource ID). |
 | [modules/container-apps-env.bicep](modules/container-apps-env.bicep) | Accepts bare-name `logAnalyticsWorkspaceId` (not just full resource ID). |
 | [main.gov.bicepparam](main.gov.bicepparam) | Replaced Octopus `#{environmentName}` tokens with Bicep `${environmentName}` interpolation. Filled in real subscription-specific subnet / LAW IDs. |
+| [deploy-prod.sh](deploy-prod.sh) | New — bash orchestrator: preflight + bicep + post-deploy RBAC/DNS + verification. See above. |
+| [deploy-prod.ps1](deploy-prod.ps1) | New — PowerShell equivalent of `deploy-prod.sh`. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | New — Mermaid topology diagram + reachability/ops notes for tech support. |
 | [DEPLOYMENT_TEST_LOG.md](DEPLOYMENT_TEST_LOG.md) | This file. |
 
