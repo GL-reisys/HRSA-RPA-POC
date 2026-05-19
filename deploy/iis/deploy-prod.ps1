@@ -448,19 +448,41 @@ try {
     $keepDefault = Resolve-Input 'KEEP_DEFAULT_SITE' '#{KeepDefaultSite}'
     if ($keepDefault -eq '1' -or $keepDefault -eq 'true') {
         Write-Section 'Default Web Site: leaving alone (KEEP_DEFAULT_SITE set)'
-    } elseif (Test-Path 'IIS:\Sites\Default Web Site') {
+    } else {
         Write-Section 'Default Web Site: stopping (prevents catch-all intercept)'
-        Stop-Website -Name 'Default Web Site' -ErrorAction SilentlyContinue
-        Set-ItemProperty 'IIS:\Sites\Default Web Site' -Name serverAutoStart -Value $false
-        # Also stop its app pool so it does not eat resources.
-        if (Test-Path 'IIS:\AppPools\DefaultAppPool') {
-            Stop-WebAppPool -Name 'DefaultAppPool' -ErrorAction SilentlyContinue
+        # Each step is wrapped because the site / pool can be in a half-deleted
+        # state on machines where someone has tinkered with them; we do not
+        # want any of these to fail the whole deploy.
+        try {
+            if (Get-Website -Name 'Default Web Site' -ErrorAction SilentlyContinue) {
+                Stop-Website -Name 'Default Web Site' -ErrorAction SilentlyContinue
+                try {
+                    Set-ItemProperty 'IIS:\Sites\Default Web Site' `
+                        -Name serverAutoStart -Value $false -ErrorAction Stop
+                } catch {
+                    Write-Warn "Could not set serverAutoStart on Default Web Site: $($_.Exception.Message)"
+                }
+                Write-OK 'Default Web Site stopped'
+            } else {
+                Write-Host '  Default Web Site not present -- nothing to do.'
+            }
+        } catch {
+            Write-Warn "Default Web Site handling failed (non-fatal): $($_.Exception.Message)"
         }
-        Write-OK 'Default Web Site stopped and set to not auto-start'
+        try {
+            if (Get-WebAppPoolState -Name 'DefaultAppPool' -ErrorAction SilentlyContinue) {
+                Stop-WebAppPool -Name 'DefaultAppPool' -ErrorAction SilentlyContinue
+                Write-OK 'DefaultAppPool stopped'
+            }
+        } catch {
+            Write-Warn "DefaultAppPool handling failed (non-fatal): $($_.Exception.Message)"
+        }
     }
 
     Write-Section 'Configuring frontend site (public *:443 + *:80 redirect)'
-    if (Test-Path "IIS:\Sites\$FrontendSiteName") { Remove-Website -Name $FrontendSiteName }
+    if (Get-Website -Name $FrontendSiteName -ErrorAction SilentlyContinue) {
+        Remove-Website -Name $FrontendSiteName
+    }
     New-Website `
         -Name $FrontendSiteName `
         -PhysicalPath $frontendTarget `
@@ -469,14 +491,56 @@ try {
         -Port 443 `
         -Ssl `
         -Force | Out-Null
+    Write-OK "Site created: $FrontendSiteName"
+
     # Add a port 80 binding for the same hostname so plain HTTP requests don't
-    # vanish into the void (or hit Default Web Site if it ever comes back).
-    # The Web.config rewrite rule below 301s them to HTTPS.
-    New-WebBinding -Name $FrontendSiteName -Protocol http -Port 80 -HostHeader $SiteHostname -Force
-    # Bind the cert.
-    $binding = Get-WebBinding -Name $FrontendSiteName -Protocol 'https'
-    $binding.AddSslCertificate($CertThumbprint, 'My') | Out-Null
-    Set-ItemProperty -Path "IIS:\Sites\$FrontendSiteName" -Name 'applicationDefaults.preloadEnabled' -Value $true
+    # vanish into the void. The rewrite rule in Web.config 301s them to HTTPS.
+    # Wrap in try/catch -- if the binding already exists from a previous half-
+    # completed run, New-WebBinding throws.
+    try {
+        New-WebBinding -Name $FrontendSiteName -Protocol http -Port 80 `
+            -HostHeader $SiteHostname -ErrorAction Stop | Out-Null
+        Write-OK "Added :80 binding for $SiteHostname"
+    } catch {
+        # Already present? Check and move on.
+        $has80 = Get-WebBinding -Name $FrontendSiteName -Protocol http -Port 80 `
+                    -HostHeader $SiteHostname -ErrorAction SilentlyContinue
+        if ($has80) {
+            Write-Host "  :80 binding already present -- ok"
+        } else {
+            Write-Warn ":80 binding add failed: $($_.Exception.Message). HTTP->HTTPS redirect will not work; HTTPS will."
+        }
+    }
+
+    # Bind the cert. Use netsh as a fallback if the .NET cmdlet path fails --
+    # AddSslCertificate() throws 0x800710D8 if the binding hasn't fully
+    # propagated to HTTP.sys yet (a known race in PS 5.1).
+    try {
+        $binding = Get-WebBinding -Name $FrontendSiteName -Protocol 'https' -ErrorAction Stop
+        if (-not $binding) { throw "no https binding found on $FrontendSiteName" }
+        $binding.AddSslCertificate($CertThumbprint, 'My') | Out-Null
+        Write-OK "Cert bound via WebAdministration"
+    } catch {
+        Write-Warn "AddSslCertificate failed: $($_.Exception.Message)"
+        Write-Host "  Retrying via netsh http..."
+        # netsh wants the cert hash without spaces and the appid (a GUID; IIS uses a known one).
+        $appId = '{4dc3e181-e14b-4a21-b022-59fc669b0914}'
+        & "$env:WINDIR\System32\netsh.exe" http delete sslcert hostnameport="${SiteHostname}:443" 2>$null | Out-Null
+        & "$env:WINDIR\System32\netsh.exe" http add sslcert `
+            hostnameport="${SiteHostname}:443" `
+            certhash=$CertThumbprint `
+            appid=$appId `
+            certstorename=MY 2>&1 | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "netsh sslcert bind failed (exit $LASTEXITCODE)" }
+        Write-OK "Cert bound via netsh"
+    }
+
+    try {
+        Set-ItemProperty -Path "IIS:\Sites\$FrontendSiteName" `
+            -Name 'applicationDefaults.preloadEnabled' -Value $true -ErrorAction Stop
+    } catch {
+        Write-Warn "preloadEnabled set failed (non-fatal): $($_.Exception.Message)"
+    }
     Write-OK "$FrontendSiteName bound to *:443 + *:80 (host=$SiteHostname, cert=$CertThumbprint)"
 
     Write-Section 'Starting app pools + sites'
@@ -490,6 +554,16 @@ try {
 } catch {
     Write-Host ""
     Write-Host "ERROR during artifact swap: $_" -ForegroundColor Red
+    if ($_.InvocationInfo) {
+        Write-Host "  at: $($_.InvocationInfo.PositionMessage)" -ForegroundColor Red
+    }
+    if ($_.Exception.InnerException) {
+        Write-Host "  inner: $($_.Exception.InnerException.Message)" -ForegroundColor Red
+    }
+    if ($_.ScriptStackTrace) {
+        Write-Host "  stack:" -ForegroundColor Red
+        $_.ScriptStackTrace -split "`n" | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+    }
     if (Test-Path $snapshotRoot) {
         Write-Section 'Rolling back to previous deployment'
         if (Test-Path $DeployRoot) { Remove-Item -Path $DeployRoot -Recurse -Force }
