@@ -30,6 +30,7 @@ async function readJsonOrText(response) {
 export default function AVAChatAssistant() {
   const [file, setFile] = useState(null);
   const [fileId, setFileId] = useState(null);
+  const [formType, setFormType] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
@@ -113,6 +114,7 @@ export default function AVAChatAssistant() {
 
       const analyzeResult = analyzePayload;
       
+      setFormType(analyzeResult.form_type || 'SF-424');
       setFormData(analyzeResult.form_data);
       setValidationErrors(analyzeResult.validation_errors || []);
       setAiResponse(analyzeResult.ai_response);
@@ -167,6 +169,7 @@ export default function AVAChatAssistant() {
     
     setFile(null);
     setFileId(null);
+    setFormType(null);
     setFormData(null);
     setValidationErrors([]);
     setAiResponse(null);
@@ -179,6 +182,7 @@ export default function AVAChatAssistant() {
       <ChatInterface
         fileId={fileId}
         fileName={file?.name}
+        formType={formType}
         formData={formData}
         validationErrors={validationErrors}
         initialResponse={aiResponse}

@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -225,4 +226,108 @@ class ValidationErrorFactory:
             current_value=grant_number,
             guidance=guidance,
             image_path="/static/images/fields/grant_number.png"
+        )
+    
+    @staticmethod
+    def ppop_address_invalid(site_type: str, address: str) -> ValidationError:
+        guidance = "• Verify the address in the PPOP form is correct<br>• Check for typos in street number, street name, city, or ZIP code<br>• Ensure the address is a valid, deliverable location<br>• Confirm the address exists in USPS records"
+        return ValidationErrorFactory._create(
+            f"{site_type} address could not be validated.",
+            f"PPOP {site_type} address validation failed (STD002 - Invalid): {address}. The address does not exist in USPS records or cannot be standardized.",
+            field_name=f"PPOP {site_type} Address",
+            page_number=1,
+            field_location=f"PPOP Form - {site_type}",
+            current_value=address,
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def ppop_address_ambiguous(site_type: str, address: str) -> ValidationError:
+        guidance = "• Provide more specific address details (apartment/suite number, building name)<br>• Verify the ZIP code matches the city and state<br>• Check if additional address lines are needed<br>• Ensure the street name is complete and correct"
+        return ValidationErrorFactory._create(
+            f"{site_type} address matches multiple locations.",
+            f"PPOP {site_type} address validation failed (STD003 - Ambiguous): {address}. Multiple locations match this address.",
+            field_name=f"PPOP {site_type} Address",
+            page_number=1,
+            field_location=f"PPOP Form - {site_type}",
+            current_value=address,
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def ppop_address_quality_failure(site_type: str, address: str, reason: str) -> ValidationError:
+        guidance = "• Verify the complete street address including street number<br>• Ensure ZIP+4 code is correct<br>• Check that the address is a specific delivery point, not just a street name<br>• Confirm all address components are accurate"
+        return ValidationErrorFactory._create(
+            f"{site_type} address quality check failed.",
+            f"PPOP {site_type} address validation failed quality requirements: {address}. Reason: {reason}",
+            field_name=f"PPOP {site_type} Address",
+            page_number=1,
+            field_location=f"PPOP Form - {site_type}",
+            current_value=address,
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def ppop_district_mismatch(site_type: str, form_district: str, hdw_district: str, address: str) -> ValidationError:
+        # Format HDW district to XX-XXX format for user guidance
+        hdw_formatted = ValidationErrorFactory._format_district_for_display(hdw_district)
+        
+        guidance = f"• Verify the congressional district in the form is correct<br>• The HDW API indicates this address is in district <strong>{hdw_formatted}</strong><br>• Update the congressional district field in the PDF to <strong>{hdw_formatted}</strong> (format: XX-XXX)<br>• If the district in the form is correct, verify the address is accurate"
+        return ValidationErrorFactory._create(
+            f"{site_type} congressional district mismatch.",
+            f"PPOP {site_type} congressional district does not match HDW validation. Form shows: {form_district}, HDW shows: {hdw_formatted}. Address: {address}",
+            field_name=f"PPOP {site_type} Congressional District",
+            page_number=1,
+            field_location=f"PPOP Form - {site_type}",
+            current_value=form_district,
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def _format_district_for_display(district: str) -> str:
+        """
+        Format congressional district to XX-XXX format for display.
+        Examples: VA10 → VA-010, CA5 → CA-005, VA-10 → VA-010
+        """
+        # Remove dashes and spaces, uppercase
+        district_clean = district.upper().replace('-', '').replace(' ', '')
+        
+        # Extract state and district number
+        match = re.match(r'^([A-Z]{2})(\d+)$', district_clean)
+        if match:
+            state = match.group(1)
+            num = match.group(2).zfill(3)  # Pad to 3 digits with leading zeros
+            return f"{state}-{num}"
+        
+        # Return as-is if format doesn't match
+        return district
+    
+    @staticmethod
+    def ppop_api_timeout(site_type: str) -> ValidationError:
+        guidance = "⚠️ <strong>TEMPORARY ISSUE</strong><br>• The HDW API request timed out - this is a temporary network issue<br>• Please try uploading the form again in a few moments<br>• If the issue persists, contact support<br>• Your other validations are not affected"
+        return ValidationErrorFactory._create(
+            f"⚠️ {site_type} address validation timed out (temporary issue).",
+            f"PPOP {site_type} address validation timed out. HDW API did not respond within the timeout period.",
+            field_name=f"PPOP {site_type} Address",
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def ppop_api_error(site_type: str, error_msg: str) -> ValidationError:
+        guidance = "⚠️ <strong>TEMPORARY ISSUE</strong><br>• The HDW API is currently unavailable - this is a temporary service issue<br>• Please try again in a few minutes<br>• If you need immediate assistance, contact support<br>• Your SF-424 validations can still proceed normally"
+        return ValidationErrorFactory._create(
+            f"⚠️ {site_type} address validation temporarily unavailable.",
+            f"PPOP {site_type} address validation failed due to API error: {error_msg}",
+            field_name=f"PPOP {site_type} Address",
+            guidance=guidance
+        )
+    
+    @staticmethod
+    def ppop_api_disabled() -> ValidationError:
+        guidance = "• PPOP address validation is currently disabled<br>• Contact your system administrator<br>• Check the HDW_API_ENABLED environment variable"
+        return ValidationErrorFactory._create(
+            "PPOP address validation is disabled.",
+            "PPOP address validation is disabled in system configuration (HDW_API_ENABLED=false).",
+            field_name="PPOP Validation",
+            guidance=guidance
         )

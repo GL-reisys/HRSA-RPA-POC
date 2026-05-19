@@ -33,6 +33,7 @@ async function readJsonOrText(response) {
 export default function ChatInterface({ 
   fileId, 
   fileName, 
+  formType,
   formData, 
   validationErrors, 
   initialResponse,
@@ -156,7 +157,7 @@ export default function ChatInterface({
             </Typography>
             <Chip 
               icon={<DescriptionIcon />}
-              label={fileName} 
+              label={`${formType || 'SF-424'} - ${fileName}`} 
               color="primary" 
               variant="outlined"
               sx={{ backgroundColor: '#ffffff' }}
