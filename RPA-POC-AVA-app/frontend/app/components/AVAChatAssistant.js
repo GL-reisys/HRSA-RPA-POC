@@ -94,7 +94,7 @@ export default function AVAChatAssistant() {
         body: JSON.stringify({
           file_id: uploadResult.file_id,
           file_name: uploadedFile.name,
-          message: 'Please analyze this SF-424 form.'
+          message: 'Please analyze this PDF form.'
         }),
       });
 
@@ -122,7 +122,7 @@ export default function AVAChatAssistant() {
       setChatHistory([
         {
           role: 'user',
-          content: 'Please analyze this SF-424 form.',
+          content: 'Please analyze this PDF form.',
           timestamp: new Date().toISOString()
         },
         {
@@ -240,7 +240,7 @@ export default function AVAChatAssistant() {
         ) : (
           <Box>
             <Typography variant="h6" sx={{ color: '#1e4d5a', fontWeight: 600, mb: 2 }}>
-              Upload SF-424 Form
+              Upload SF-424 PDF Form or Performance Site PDF Form
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
               Get instant validation and AI-powered assistance
