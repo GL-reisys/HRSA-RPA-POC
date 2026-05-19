@@ -1,0 +1,175 @@
+# Azure DevOps build pipeline for the HRSA-RPA-POC IIS deployment.
+#
+# This is the *build* stage only. It produces a versioned ZIP artifact
+# (HRSA-RPA-POC-iis-<buildNumber>.zip) that Octopus picks up and deploys
+# to IIS targets via deploy/iis/deploy-prod.ps1.
+#
+# Layout of the produced package:
+#   HRSA-RPA-POC-iis-<v>.zip
+#     ├── frontend/                 ← Next.js standalone output (server.js etc.)
+#     ├── backend/                  ← Flask app + requirements.txt
+#     ├── wheelhouse/               ← pre-downloaded wheels for offline pip install
+#     ├── web.config.frontend.tpl   ← Octopus substitutes #{...} before deploy
+#     ├── web.config.backend.tpl    ← ditto
+#     └── deploy-prod.ps1           ← Octopus invokes this on the target server
+
+trigger:
+  branches:
+    include:
+      - main
+      - dev/*
+  paths:
+    include:
+      - RPA-POC-AVA-app/**
+      - deploy/iis/**
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - RPA-POC-AVA-app/**
+      - deploy/iis/**
+
+variables:
+  # Pinned runtime versions — must match Install-Prereqs.ps1 on the IIS target.
+  nodeVersion:   '20.x'
+  pythonVersion: '3.12'
+  appName:       'HRSA-RPA-POC'
+  artifactName:  'HRSA-RPA-POC-iis'
+
+pool:
+  vmImage: 'windows-latest'   # Windows agent so pip downloads win_amd64 wheels.
+
+stages:
+- stage: Build
+  displayName: Build IIS package
+  jobs:
+  - job: Package
+    displayName: Build frontend + backend, assemble ZIP
+    steps:
+
+    # --- Frontend: Next.js standalone build --------------------------------
+    - task: NodeTool@0
+      displayName: Use Node $(nodeVersion)
+      inputs:
+        versionSpec: $(nodeVersion)
+
+    - task: Cache@2
+      displayName: Cache npm
+      inputs:
+        key: 'npm | "$(Agent.OS)" | RPA-POC-AVA-app/frontend/package-lock.json'
+        path: $(System.DefaultWorkingDirectory)/RPA-POC-AVA-app/frontend/node_modules
+
+    - script: |
+        npm ci
+        npm run build
+      displayName: npm ci + next build
+      workingDirectory: $(System.DefaultWorkingDirectory)/RPA-POC-AVA-app/frontend
+
+    # Next.js standalone output sits in .next/standalone/, but .next/static
+    # and public/ have to be merged in manually (Vercel docs call this out).
+    - powershell: |
+        $src    = "$(System.DefaultWorkingDirectory)/RPA-POC-AVA-app/frontend"
+        $stage  = "$(Build.BinariesDirectory)/package/frontend"
+        New-Item -ItemType Directory -Path $stage -Force | Out-Null
+        Copy-Item -Path "$src/.next/standalone/*" -Destination $stage -Recurse -Force
+        New-Item -ItemType Directory -Path "$stage/.next/static" -Force | Out-Null
+        Copy-Item -Path "$src/.next/static/*" -Destination "$stage/.next/static" -Recurse -Force
+        if (Test-Path "$src/public") {
+          New-Item -ItemType Directory -Path "$stage/public" -Force | Out-Null
+          Copy-Item -Path "$src/public/*" -Destination "$stage/public" -Recurse -Force
+        }
+        Write-Host "frontend payload assembled at $stage"
+      displayName: Assemble frontend payload
+
+    # --- Backend: copy source, download wheels ------------------------------
+    - task: UsePythonVersion@0
+      displayName: Use Python $(pythonVersion)
+      inputs:
+        versionSpec: $(pythonVersion)
+        architecture: x64
+
+    - powershell: |
+        $src   = "$(System.DefaultWorkingDirectory)/RPA-POC-AVA-app/backend"
+        $stage = "$(Build.BinariesDirectory)/package/backend"
+        $wheel = "$(Build.BinariesDirectory)/package/wheelhouse"
+        New-Item -ItemType Directory -Path $stage, $wheel -Force | Out-Null
+
+        # Copy backend source — but skip the local venv, __pycache__, uploads, data.
+        $exclude = @('venv', '.venv', '__pycache__', 'uploads', 'data', 'database', '.pytest_cache')
+        Get-ChildItem $src -Force | Where-Object { $exclude -notcontains $_.Name } |
+          Copy-Item -Destination $stage -Recurse -Force
+
+        # Bootstrap wheels (pip/setuptools/wheel) so the offline install on the
+        # IIS box can upgrade them.
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip download --dest $wheel pip setuptools wheel
+
+        # App + waitress wheels. Pinning the platform/Python version ensures
+        # we get only win_amd64 wheels matching the target runtime.
+        python -m pip download `
+          --dest $wheel `
+          --platform win_amd64 `
+          --python-version $(pythonVersion) `
+          --only-binary=:all: `
+          --implementation cp `
+          -r "$src/requirements.txt" `
+          waitress==3.0.0
+        Write-Host "backend payload + wheelhouse assembled"
+      displayName: Assemble backend payload + wheelhouse
+
+    # --- Pipeline / deploy artifacts ---------------------------------------
+    - powershell: |
+        Copy-Item "$(System.DefaultWorkingDirectory)/deploy/iis/web.config.frontend.tpl" "$(Build.BinariesDirectory)/package/"
+        Copy-Item "$(System.DefaultWorkingDirectory)/deploy/iis/web.config.backend.tpl"  "$(Build.BinariesDirectory)/package/"
+        Copy-Item "$(System.DefaultWorkingDirectory)/deploy/iis/deploy-prod.ps1"         "$(Build.BinariesDirectory)/package/"
+      displayName: Bundle Web.config templates + deploy script
+
+    # Stamp the build number into the package so we can tell at runtime.
+    - powershell: |
+        $info = @{
+          appName     = '$(appName)'
+          buildId     = '$(Build.BuildId)'
+          buildNumber = '$(Build.BuildNumber)'
+          sourceBranch= '$(Build.SourceBranch)'
+          sourceCommit= '$(Build.SourceVersion)'
+          builtAtUtc  = (Get-Date).ToUniversalTime().ToString('o')
+        }
+        $info | ConvertTo-Json | Set-Content "$(Build.BinariesDirectory)/package/build-info.json"
+      displayName: Write build-info.json
+
+    - task: ArchiveFiles@2
+      displayName: Zip package
+      inputs:
+        rootFolderOrFile: '$(Build.BinariesDirectory)/package'
+        includeRootFolder: false
+        archiveType: zip
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactName)-$(Build.BuildNumber).zip'
+        replaceExistingArchive: true
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish to ADO artifact feed (Octopus pulls from here)
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: '$(artifactName)'
+        publishLocation: 'Container'
+
+    # Optional: push directly into the Octopus built-in package feed via the
+    # Octopus extension. Uncomment + configure the service connection in your
+    # ADO project if you prefer push-to-Octopus over pull-from-ADO.
+    #
+    # - task: OctopusPack@5
+    #   inputs:
+    #     PackageId: $(artifactName)
+    #     PackageFormat: Zip
+    #     PackageVersion: $(Build.BuildNumber)
+    #     SourcePath: '$(Build.BinariesDirectory)/package'
+    #     OutputPath: '$(Build.ArtifactStagingDirectory)/octopus'
+    #
+    # - task: OctopusPush@5
+    #   inputs:
+    #     OctoConnectedServiceName: '<your-octopus-service-connection>'
+    #     Space: 'Default'
+    #     Package: '$(Build.ArtifactStagingDirectory)/octopus/*.zip'

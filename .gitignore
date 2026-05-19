@@ -3,3 +3,9 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
+# Local env files used by deploy scripts (scripts/azure/local.env,
+# deploy/iis/local.env). Contain secrets - never commit.
+local.env
+
+# Local build output from deploy/iis/build-local.ps1 (and similar).
+.local-build/
