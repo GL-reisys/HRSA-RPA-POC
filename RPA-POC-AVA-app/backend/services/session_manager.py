@@ -1,30 +1,70 @@
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from threading import Lock
+
+# UUIDv4 pattern used for filenames in the chat upload flow (<file_id>.pdf).
+# Constrained so the orphan sweep never deletes anything but uploads it owns.
+_UPLOAD_FILENAME_PATTERN = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$',
+    re.IGNORECASE,
+)
+
 
 class SessionManager:
     """
     Manages session data in JSON file for POC.
     Thread-safe file operations.
     """
-    
-    def __init__(self, json_file: str = 'data/sessions.json'):
+
+    # Default session lifetime if SESSION_TIMEOUT_HOURS env var is unset
+    # or invalid. 0.5 = 30 minutes. Tightened from 4h to minimize PII
+    # retention on disk.
+    DEFAULT_SESSION_TIMEOUT_HOURS = 0.5
+
+    def __init__(
+        self,
+        json_file: str = 'data/sessions.json',
+        upload_folder: Optional[str] = None,
+        session_timeout_hours: Optional[float] = None,
+    ):
         """
         Initialize session manager.
-        
+
         Args:
-            json_file: Path to JSON storage file
+            json_file: Path to JSON storage file.
+            upload_folder: Directory where uploaded PDFs are stored.
+                When set, cleanup_expired_sessions also removes the
+                matching <file_id>.pdf, and sweep_orphan_uploads can run.
+            session_timeout_hours: Override session TTL in hours (fractions
+                allowed, e.g. 0.5 = 30 min). If None, falls back to the
+                SESSION_TIMEOUT_HOURS env var, then to DEFAULT_SESSION_TIMEOUT_HOURS.
         """
         self.json_file = json_file
+        self.upload_folder = upload_folder
         self.lock = Lock()
-        self.session_timeout_hours = 4
-        
+        self.session_timeout_hours = self._resolve_timeout(session_timeout_hours)
+
         os.makedirs(os.path.dirname(json_file), exist_ok=True)
-        
+
         if not os.path.exists(json_file):
             self._save_sessions({'sessions': {}})
+
+    @classmethod
+    def _resolve_timeout(cls, override: Optional[float]) -> float:
+        if override is not None:
+            return float(override)
+        raw = os.getenv('SESSION_TIMEOUT_HOURS')
+        if raw:
+            try:
+                value = float(raw)
+                if value > 0:
+                    return value
+            except ValueError:
+                pass
+        return cls.DEFAULT_SESSION_TIMEOUT_HOURS
     
     def save_session(self, file_id: str, data: Dict[str, Any]) -> bool:
         """
@@ -166,35 +206,117 @@ class SessionManager:
     
     def cleanup_expired_sessions(self) -> int:
         """
-        Remove all expired sessions.
-        
+        Remove all expired sessions and delete their associated upload files
+        (when an upload_folder is configured).
+
         Returns:
-            Number of sessions cleaned up
+            Number of sessions cleaned up.
         """
         try:
             with self.lock:
                 sessions = self._load_sessions()
                 now = datetime.utcnow()
-                
+
                 expired_ids = []
-                
+
                 for file_id, session in sessions['sessions'].items():
                     expires_at = datetime.fromisoformat(session['expires_at'].replace('Z', ''))
                     if now > expires_at:
                         expired_ids.append(file_id)
-                
+
+                deleted_files = 0
                 for file_id in expired_ids:
                     del sessions['sessions'][file_id]
-                
+                    if self._delete_upload_file(file_id):
+                        deleted_files += 1
+
                 if expired_ids:
                     self._save_sessions(sessions)
-                    print(f"Cleaned up {len(expired_ids)} expired sessions")
-                
+                    print(
+                        f"Cleaned up {len(expired_ids)} expired sessions "
+                        f"({deleted_files} upload file(s) removed)"
+                    )
+
                 return len(expired_ids)
-                
+
         except Exception as e:
             print(f"Error cleaning up sessions: {str(e)}")
             return 0
+
+    def sweep_orphan_uploads(self) -> int:
+        """
+        Delete <uuid>.pdf files in the upload folder that have no matching
+        active session record and are older than the session timeout.
+
+        The mtime guard protects in-flight uploads: the chat flow saves the
+        PDF in /api/pdf/upload but doesn't create a session record until
+        /api/pdf/analyze finishes, so a brand-new file may legitimately
+        have no session yet.
+
+        Returns:
+            Number of orphan files deleted.
+        """
+        if not self.upload_folder:
+            return 0
+
+        try:
+            with self.lock:
+                sessions = self._load_sessions()
+                active_ids = set(sessions['sessions'].keys())
+
+            if not os.path.isdir(self.upload_folder):
+                return 0
+
+            cutoff_ts = (
+                datetime.utcnow() - timedelta(hours=self.session_timeout_hours)
+            ).timestamp()
+
+            removed = 0
+            for entry in os.listdir(self.upload_folder):
+                if not _UPLOAD_FILENAME_PATTERN.match(entry):
+                    continue
+
+                file_id = entry[:-4]  # strip .pdf
+                if file_id in active_ids:
+                    continue
+
+                path = os.path.join(self.upload_folder, entry)
+                try:
+                    if os.path.getmtime(path) > cutoff_ts:
+                        # Too recent to be a true orphan; could still be
+                        # mid-upload/analyze before the session is saved.
+                        continue
+                    os.remove(path)
+                    removed += 1
+                except FileNotFoundError:
+                    continue
+                except Exception as e:
+                    print(f"Error removing orphan upload {path}: {str(e)}")
+
+            if removed:
+                print(
+                    f"Orphan sweep removed {removed} upload(s) from "
+                    f"{self.upload_folder}"
+                )
+            return removed
+
+        except Exception as e:
+            print(f"Error during orphan sweep: {str(e)}")
+            return 0
+
+    def _delete_upload_file(self, file_id: str) -> bool:
+        """Delete <upload_folder>/<file_id>.pdf if it exists. Best-effort."""
+        if not self.upload_folder:
+            return False
+
+        pdf_path = os.path.join(self.upload_folder, f"{file_id}.pdf")
+        try:
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+                return True
+        except Exception as e:
+            print(f"Error deleting upload file {pdf_path}: {str(e)}")
+        return False
     
     def get_session_count(self) -> int:
         """

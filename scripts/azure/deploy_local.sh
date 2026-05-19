@@ -65,7 +65,6 @@ FRONTEND_IMAGE="${FRONTEND_IMAGE:-$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-frontend:
 BACKEND_IMAGE="${BACKEND_IMAGE:-$AZURE_ACR_LOGIN_SERVER/hrsa-rpa-ava-backend:$BACKEND_IMAGE_TAG}"
 
 command -v az >/dev/null 2>&1 || { echo "Azure CLI is required." >&2; exit 1; }
-command -v docker >/dev/null 2>&1 || { echo "Docker is required." >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required." >&2; exit 1; }
 
 active_subscription="$(az account show --query id -o tsv)"
@@ -74,8 +73,6 @@ if [[ "$active_subscription" != "$AZURE_SUBSCRIPTION_ID" ]]; then
   echo "Run: az account set --subscription $AZURE_SUBSCRIPTION_ID" >&2
   exit 1
 fi
-
-az acr login --name "$AZURE_ACR_NAME" >/dev/null
 
 AZURE_ACR_USERNAME="${AZURE_ACR_USERNAME:-$(az acr credential show --name "$AZURE_ACR_NAME" --query username -o tsv)}"
 AZURE_ACR_PASSWORD="${AZURE_ACR_PASSWORD:-$(az acr credential show --name "$AZURE_ACR_NAME" --query 'passwords[0].value' -o tsv)}"
@@ -98,19 +95,28 @@ export BACKEND_IMAGE
 export AZURE_ACR_USERNAME
 export AZURE_ACR_PASSWORD
 
-echo "Building backend image: $BACKEND_IMAGE"
-docker buildx build \
+BACKEND_IMAGE_REPO_TAG="${BACKEND_IMAGE#*/}"
+FRONTEND_IMAGE_REPO_TAG="${FRONTEND_IMAGE#*/}"
+
+echo "Building backend image in ACR Tasks: $BACKEND_IMAGE"
+az acr build \
+  --registry "$AZURE_ACR_NAME" \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --image "$BACKEND_IMAGE_REPO_TAG" \
   --platform linux/amd64 \
-  --tag "$BACKEND_IMAGE" \
-  --push \
+  --file "$REPO_ROOT/RPA-POC-AVA-app/backend/Dockerfile" \
+  --only-show-errors \
   "$REPO_ROOT/RPA-POC-AVA-app/backend"
 
-echo "Building frontend image: $FRONTEND_IMAGE"
-docker buildx build \
+echo "Building frontend image in ACR Tasks: $FRONTEND_IMAGE"
+az acr build \
+  --registry "$AZURE_ACR_NAME" \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --image "$FRONTEND_IMAGE_REPO_TAG" \
   --platform linux/amd64 \
+  --file "$REPO_ROOT/RPA-POC-AVA-app/frontend/Dockerfile" \
   --build-arg API_INTERNAL_URL="$API_INTERNAL_URL" \
-  --tag "$FRONTEND_IMAGE" \
-  --push \
+  --only-show-errors \
   "$REPO_ROOT/RPA-POC-AVA-app/frontend"
 
 echo "Rendering ACI manifest to $ACI_MANIFEST_PATH"

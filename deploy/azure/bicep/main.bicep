@@ -1,3 +1,4 @@
+// HRSA-RPA-POC Container Apps deployment
 // Private network deployment for HRSA-RPA-AVA on Azure Government.
 //
 // Topology:
@@ -26,30 +27,26 @@ targetScope = 'resourceGroup'
 @description('Azure region. Use a Gov region: usgovvirginia, usgovtexas, usgovarizona, usgoviowa.')
 param location string = resourceGroup().location
 
-@description('Resource name prefix (3-12 lowercase alphanumeric).')
-@minLength(3)
-@maxLength(12)
-param namePrefix string
+@description('Region abbreviation (e.g., eus, wus, usgv)')
+param regionAbbr string = 'eus'
 
-@description('ACR name (5-50 globally unique lowercase alphanumeric).')
-@minLength(5)
-@maxLength(50)
-param acrName string
+@description('Deployment environment (e.g., dev, sec, uat, prod)')
+param deploymentEnvironment string
 
 @description('Tag value for environment (e.g. dev, prod).')
 param environmentName string = 'prod'
 
-@description('VNet CIDR.')
-param vnetAddressPrefix string = '10.40.0.0/20'
+@description('Managed Identity resource ID (optional - leave empty to create new)')
+param managedIdentityId string = ''
 
-@description('Subnet for the Container Apps environment. Consumption-only requires /23 minimum.')
-param infraSubnetPrefix string = '10.40.0.0/23'
+@description('Log Analytics Workspace ID (required - must be pre-existing)')
+param logAnalyticsWorkspaceId string
 
-@description('Subnet for private endpoints.')
-param peSubnetPrefix string = '10.40.2.0/26'
+@description('Subnet ID for Container Apps infrastructure (must be /23 or larger, delegated to Microsoft.App/environments)')
+param infrastructureSubnetId string
 
-@description('ACR private DNS zone name. Gov default: privatelink.azurecr.us.')
-param acrPrivateDnsZoneName string = 'privatelink.azurecr.us'
+@description('Subnet ID for private endpoints')
+param privateEndpointSubnetId string
 
 @description('Frontend container image reference (full ACR path + tag).')
 param frontendImage string
@@ -69,92 +66,102 @@ param azureOpenAiEndpoint string
 @description('Azure OpenAI deployment name.')
 param azureOpenAiDeployment string = 'gpt-4'
 
-@secure()
-@description('Azure OpenAI API key (stored as a Container App secret).')
-param azureOpenAiApiKey string
-
 @description('CORS allowed origins for the backend (comma-separated).')
 param corsAllowedOrigins string = ''
+
+@description('Wire ACR into container app `registries` config. Set false to deploy with public images (e.g. mcr.microsoft.com) without needing AcrPull/ACR access.')
+param useAcrRegistry bool = true
+
+@description('Create Application Insights')
+param createApplicationInsights bool = true
+
+@description('Application Insights public network access for ingestion')
+param appInsightsPublicNetworkAccessForIngestion string = 'Enabled'
+
+@description('Application Insights public network access for query')
+param appInsightsPublicNetworkAccessForQuery string = 'Enabled'
 
 // -----------------------------------------------------------------------------
 // Locals
 // -----------------------------------------------------------------------------
 
-var tags = {
-  application: 'hrsa-rpa-ava'
-  environment: environmentName
-  'managed-by': 'bicep'
-  networkProfile: 'private'
+// Naming convention: {service-abbr}-{region}-dgps-ehbs-{env}-rpa
+var baseResourceName = '${regionAbbr}-dgps-ehbs-${deploymentEnvironment}-rpa'
+var resourceNames = {
+  containerAppFrontend: 'ca-${baseResourceName}-ui'
+  containerAppBackend: 'ca-${baseResourceName}-svc'
+  containerAppEnvironment: 'cae-${baseResourceName}'
+  containerRegistry: 'cr${replace(baseResourceName, '-', '')}' // ACR requires alphanumeric only
+  managedIdentity: 'id-${baseResourceName}'
+  logAnalytics: 'law-${baseResourceName}'
+  applicationInsights: 'appi-${baseResourceName}'
 }
 
+// Add environment tags following EHBs-IaC pattern
+var baseTags = {
+  Project: 'HRSA-ENTERPRISE-RPA'
+  CostCenter: 'DGPS-EHBS'
+  DT_Monitoring: 'True'
+  Env: deploymentEnvironment
+  Environment: deploymentEnvironment
+}
+
+var tags = baseTags
+
+// Managed Identity Logic:
+// - If managedIdentityId is provided (resource ID) -> Use existing identity
+// - If managedIdentityId is empty -> Create new identity with auto-generated name
+var actualMIName = !empty(managedIdentityId) ? managedIdentityId : resourceNames.managedIdentity
+var shouldUseExisting = !empty(managedIdentityId)
+
 // -----------------------------------------------------------------------------
-// Networking
+// Managed Identity
 // -----------------------------------------------------------------------------
 
-module network 'modules/network.bicep' = {
-  name: 'network'
+module managedIdentity 'shared/managed-identity/main.bicep' = {
+  name: 'managed-identity-deployment'
   params: {
+    managedIdentity: actualMIName
+    useExisting: shouldUseExisting
     location: location
-    namePrefix: namePrefix
-    vnetAddressPrefix: vnetAddressPrefix
-    infraSubnetPrefix: infraSubnetPrefix
-    peSubnetPrefix: peSubnetPrefix
     tags: tags
   }
 }
+
+// Note: VNet and subnets are created outside of this BICEP deployment
+// Subnet IDs are passed as parameters
+
+// Note: Log Analytics workspace is pre-existing and passed as parameter
+// Note: Managed Identity is created by this deployment (or use existing if ID provided)
 
 // -----------------------------------------------------------------------------
 // Observability
 // -----------------------------------------------------------------------------
 
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
-  name: '${namePrefix}-law'
-  location: location
-  tags: tags
-  properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-    retentionInDays: 30
-    features: {
-      enableLogAccessUsingOnlyResourcePermissions: true
-    }
+module applicationInsights 'shared/application-insights/main.bicep' = if (createApplicationInsights) {
+  name: 'application-insights-deployment'
+  params: {
+    applicationInsightsName: resourceNames.applicationInsights
+    location: location
+    workspaceId: logAnalyticsWorkspaceId
+    publicNetworkAccessForIngestion: appInsightsPublicNetworkAccessForIngestion
+    publicNetworkAccessForQuery: appInsightsPublicNetworkAccessForQuery
+    tags: tags
   }
 }
 
 // -----------------------------------------------------------------------------
-// Azure Container Registry + private endpoint
+// Azure Container Registry with integrated private endpoint
 // -----------------------------------------------------------------------------
 
 module acr 'modules/acr.bicep' = {
   name: 'acr'
   params: {
     location: location
-    name: acrName
+    name: resourceNames.containerRegistry
     tags: tags
-  }
-}
-
-module acrPrivateDnsZone 'modules/private-dns-zone.bicep' = {
-  name: 'acr-pdz'
-  params: {
-    zoneName: acrPrivateDnsZoneName
-    vnetId: network.outputs.vnetId
-    vnetLinkName: '${namePrefix}-acr-vnetlink'
-    tags: tags
-  }
-}
-
-module acrPrivateEndpoint 'modules/private-endpoint.bicep' = {
-  name: 'acr-pe'
-  params: {
-    location: location
-    name: '${namePrefix}-acr-pe'
-    subnetId: network.outputs.peSubnetId
-    privateLinkResourceId: acr.outputs.acrId
-    groupId: 'registry'
-    privateDnsZoneId: acrPrivateDnsZone.outputs.zoneId
-    tags: tags
+    privateEndpointSubnetId: privateEndpointSubnetId
+    enablePrivateEndpoint: true
   }
 }
 
@@ -163,57 +170,41 @@ module acrPrivateEndpoint 'modules/private-endpoint.bicep' = {
 // -----------------------------------------------------------------------------
 
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
-  name: 'aca-env'
+  name: 'cae-deployment'
   params: {
     location: location
-    name: '${namePrefix}-aca-env'
-    infrastructureSubnetId: network.outputs.infraSubnetId
-    logAnalyticsWorkspaceName: logAnalytics.name
+    name: resourceNames.containerAppEnvironment
+    infrastructureSubnetId: infrastructureSubnetId
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     tags: tags
   }
 }
 
-// Private DNS zone for the env's default domain so peered networks can resolve app FQDNs
-// to the env's internal static IP. Wildcard record covers every app in the env.
-module acaPrivateDnsZone 'modules/private-dns-zone.bicep' = {
-  name: 'aca-pdz'
-  params: {
-    zoneName: containerAppsEnv.outputs.defaultDomain
-    vnetId: network.outputs.vnetId
-    vnetLinkName: '${namePrefix}-aca-vnetlink'
-    tags: tags
-    aRecords: [
-      {
-        name: '*'
-        ipv4Address: containerAppsEnv.outputs.staticIp
-      }
-      {
-        name: '@'
-        ipv4Address: containerAppsEnv.outputs.staticIp
-      }
-    ]
-  }
-}
+// Note: Container Apps Environment creates its own private DNS zone automatically
+// when deployed with internal=true. No manual DNS zone needed following EHBs-IaC pattern.
 
 // -----------------------------------------------------------------------------
 // Backend container app (internal-only; reachable only from inside the env)
 // -----------------------------------------------------------------------------
 
 module backendApp 'modules/container-app.bicep' = {
-  name: 'backend-app'
+  name: 'ca-backend-deployment'
   params: {
     location: location
-    name: '${namePrefix}-backend'
+    name: resourceNames.containerAppBackend
     environmentId: containerAppsEnv.outputs.environmentId
     acrId: acr.outputs.acrId
     acrLoginServer: acr.outputs.loginServer
     image: backendImage
     targetPort: backendTargetPort
     ingressExternal: false
+    useAcrRegistry: useAcrRegistry
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1
     maxReplicas: 3
+    managedIdentityId: managedIdentity.outputs.managedIdentityId
+    appInsightsConnectionString: createApplicationInsights ? applicationInsights.outputs.connectionString : ''
     envVars: [
       {
         name: 'FLASK_ENV'
@@ -243,21 +234,15 @@ module backendApp 'modules/container-app.bicep' = {
         name: 'DATA_DIR'
         value: '/app/database'
       }
-    ]
-    secrets: {
-      items: [
-        {
-          name: 'azure-openai-api-key'
-          value: azureOpenAiApiKey
-        }
-      ]
-    }
-    secretEnvVars: [
       {
-        name: 'AZURE_OPENAI_API_KEY'
-        secretRef: 'azure-openai-api-key'
+        name: 'AZURE_CLIENT_ID'
+        value: managedIdentity.outputs.managedIdentityClientId
       }
     ]
+    secrets: {
+      items: []
+    }
+    secretEnvVars: []
     tags: tags
   }
 }
@@ -267,20 +252,23 @@ module backendApp 'modules/container-app.bicep' = {
 // -----------------------------------------------------------------------------
 
 module frontendApp 'modules/container-app.bicep' = {
-  name: 'frontend-app'
+  name: 'ca-frontend-deployment'
   params: {
     location: location
-    name: '${namePrefix}-frontend'
+    name: resourceNames.containerAppFrontend
     environmentId: containerAppsEnv.outputs.environmentId
     acrId: acr.outputs.acrId
     acrLoginServer: acr.outputs.loginServer
     image: frontendImage
     targetPort: frontendTargetPort
     ingressExternal: true
+    useAcrRegistry: useAcrRegistry
     cpu: '0.5'
     memory: '1.0Gi'
     minReplicas: 1
     maxReplicas: 3
+    managedIdentityId: managedIdentity.outputs.managedIdentityId
+    appInsightsConnectionString: createApplicationInsights ? applicationInsights.outputs.connectionString : ''
     envVars: [
       // Reachable inter-app via the env's internal FQDN. Note: next.config.js bakes
       // API_INTERNAL_URL at build time, so this only matters if the frontend image
@@ -301,9 +289,6 @@ module frontendApp 'modules/container-app.bicep' = {
 // Outputs
 // -----------------------------------------------------------------------------
 
-output vnetId string = network.outputs.vnetId
-output infraSubnetId string = network.outputs.infraSubnetId
-output peSubnetId string = network.outputs.peSubnetId
 output acrLoginServer string = acr.outputs.loginServer
 output acrId string = acr.outputs.acrId
 output containerAppsEnvironmentId string = containerAppsEnv.outputs.environmentId
@@ -311,3 +296,7 @@ output containerAppsEnvironmentDefaultDomain string = containerAppsEnv.outputs.d
 output containerAppsEnvironmentStaticIp string = containerAppsEnv.outputs.staticIp
 output frontendFqdn string = frontendApp.outputs.fqdn
 output backendFqdn string = backendApp.outputs.fqdn
+output managedIdentityId string = managedIdentity.outputs.managedIdentityId
+output managedIdentityClientId string = managedIdentity.outputs.managedIdentityClientId
+output managedIdentityPrincipalId string = managedIdentity.outputs.managedIdentityPrincipalId
+output applicationInsightsId string = createApplicationInsights ? applicationInsights.outputs.applicationInsightsId : ''
