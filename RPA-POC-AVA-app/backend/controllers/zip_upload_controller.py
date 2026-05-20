@@ -85,16 +85,25 @@ def upload_zip():
             if result['sf424_validation']:
                 sf424 = result['sf424_validation']
                 if sf424.get('extracted'):
-                    response['sf424_message'] = f"SF-424 extracted via {sf424.get('extraction_method', 'unknown')}"
+                    sf424_msg = f"SF-424 extracted via {sf424.get('extraction_method', 'unknown')}"
                     if sf424.get('errors'):
-                        response['sf424_message'] += f" - {len(sf424['errors'])} validation errors found"
+                        sf424_msg += f" - {len(sf424['errors'])} validation errors found"
+                    else:
+                        sf424_msg += " - All validations passed ✓"
+                    response['sf424_message'] = sf424_msg
                 else:
                     response['sf424_message'] = "SF-424 not found or could not be extracted"
             
             if result['ppop_validation']:
                 ppop = result['ppop_validation']
                 if ppop.get('extracted'):
-                    response['ppop_message'] = f"PPOP extracted via {ppop.get('extraction_method', 'unknown')}"
+                    ppop_msg = f"PPOP extracted via {ppop.get('extraction_method', 'unknown')}"
+                    if ppop.get('validated'):
+                        if ppop.get('errors'):
+                            ppop_msg += f" - {len(ppop['errors'])} validation errors found"
+                        else:
+                            ppop_msg += " - All validations passed ✓"
+                    response['ppop_message'] = ppop_msg
                 else:
                     response['ppop_message'] = ppop.get('message', 'PPOP not found')
             

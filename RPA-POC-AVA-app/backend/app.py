@@ -27,6 +27,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from controllers.document_controller import document_bp
 from controllers.pdf_validation_controller import pdf_bp
+from controllers.zip_upload_controller import zip_bp
 from services.session_manager import SessionManager
 from apscheduler.schedulers.background import BackgroundScheduler
 from config.runtime import get_allowed_origins, get_port, is_debug_enabled, resolve_app_path
@@ -52,25 +53,38 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = resolve_app_path(os.getenv('UPLOAD_DIR'), 'uploads')
     app.config['DATA_DIR'] = resolve_app_path(os.getenv('DATA_DIR'), 'database')
 
-    session_path = resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json')
-    session_manager = SessionManager(session_path)
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        func=session_manager.cleanup_expired_sessions,
-        trigger='interval',
-        hours=1
-    )
-    scheduler.start()
-
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['DATA_DIR'], exist_ok=True)
 
+    # Chat-flow PDFs land here (UUID-named). Created before the SessionManager
+    # so the scheduled cleanup can read it.
     data_uploads = resolve_app_path(os.getenv('TEMP_UPLOAD_PATH'), 'data/uploads')
     os.makedirs(data_uploads, exist_ok=True)
 
+    session_path = resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json')
+    session_manager = SessionManager(session_path, upload_folder=data_uploads)
+
+    scheduler = BackgroundScheduler()
+    # Expire sessions every 15 min — also deletes the matching <file_id>.pdf.
+    # With the default 30-min TTL, worst-case session retention is ~45 min.
+    scheduler.add_job(
+        func=session_manager.cleanup_expired_sessions,
+        trigger='interval',
+        minutes=15,
+    )
+    # Catch PDFs whose session record was lost (process kill, JSON corruption,
+    # missed save). Only removes files older than the session timeout, so
+    # in-flight uploads (upload → analyze) are not affected.
+    scheduler.add_job(
+        func=session_manager.sweep_orphan_uploads,
+        trigger='interval',
+        hours=1,
+    )
+    scheduler.start()
+
     app.register_blueprint(document_bp)
     app.register_blueprint(pdf_bp)
+    app.register_blueprint(zip_bp)
 
     @app.route('/')
     def index():

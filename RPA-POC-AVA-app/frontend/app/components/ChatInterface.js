@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Paper, 
@@ -33,6 +33,7 @@ async function readJsonOrText(response) {
 export default function ChatInterface({ 
   fileId, 
   fileName, 
+  formType,
   formData, 
   validationErrors, 
   initialResponse,
@@ -60,6 +61,12 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom();
   }, [chatHistory]);
+
+  const setInputRef = useCallback((node) => {
+    if (node && !sending) {
+      node.focus();
+    }
+  }, [sending]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || sending) return;
@@ -150,7 +157,7 @@ export default function ChatInterface({
             </Typography>
             <Chip 
               icon={<DescriptionIcon />}
-              label={fileName} 
+              label={`${formType || 'SF-424'} - ${fileName}`} 
               color="primary" 
               variant="outlined"
               sx={{ backgroundColor: '#ffffff' }}
@@ -307,6 +314,7 @@ export default function ChatInterface({
               disabled={sending}
               variant="outlined"
               size="small"
+              inputRef={setInputRef}
               sx={{ backgroundColor: '#fff' }}
             />
             <Button

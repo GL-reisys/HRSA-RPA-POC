@@ -20,7 +20,8 @@ from services.flattened_pdf_extractor import FlattenedPdfExtractor
 from services.form_detector import FormDetector, FormType
 from services.sf424_validator import SF424Validator
 from services.document_converter import DocumentConverter
-# from services.ppop_validator import PPOPValidator  # TODO: Implement
+from services.ppop_validator import PPOPValidator
+from services.ppop_field_mapper import PPOPFieldMapper
 
 class ComprehensiveZipProcessor:
     """
@@ -46,7 +47,8 @@ class ComprehensiveZipProcessor:
         self.form_detector = FormDetector()
         self.sf424_validator = SF424Validator(db_service) if db_service else None
         self.converter = DocumentConverter()
-        # self.ppop_validator = PPOPValidator(db_service) if db_service else None
+        self.ppop_validator = PPOPValidator()
+        self.ppop_field_mapper = PPOPFieldMapper()
     
     def process_zip(self, zip_path: str) -> Dict[str, Any]:
         """
@@ -325,11 +327,33 @@ class ComprehensiveZipProcessor:
                     result['extracted'] = True
                     result['extraction_method'] = 'text_parsing'
             
-            # TODO: Validate PPOP when validator is implemented
-            # if result['extracted'] and self.ppop_validator:
-            #     validation = self.ppop_validator.validate(result['fields'])
-            #     result['validated'] = True
-            #     result['validation_results'] = validation
+            # Validate PPOP if extracted
+            if result['extracted'] and self.ppop_validator:
+                try:
+                    # Map extracted fields to PPOP data structure
+                    # Need to reconstruct xfa_data format for mapper
+                    mapped_data = {'raw_fields': result['fields'], 'fields': result['fields']}
+                    ppop_data = self.ppop_field_mapper.map_to_ppop(mapped_data)
+                    
+                    # Validate addresses
+                    validation_errors = self.ppop_validator.validate_addresses(ppop_data)
+                    result['validated'] = True
+                    
+                    if validation_errors:
+                        result['errors'].extend([err.user_message for err in validation_errors])
+                        result['validation_results'] = {
+                            'valid': False,
+                            'error_count': len(validation_errors),
+                            'errors': validation_errors
+                        }
+                    else:
+                        result['validation_results'] = {
+                            'valid': True,
+                            'error_count': 0,
+                            'message': 'All PPOP addresses validated successfully'
+                        }
+                except Exception as e:
+                    result['errors'].append(f'PPOP validation failed: {str(e)}')
             
         except Exception as e:
             result['errors'].append(f'PPOP processing failed: {str(e)}')

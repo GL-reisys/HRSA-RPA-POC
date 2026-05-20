@@ -5,23 +5,32 @@ import asyncio
 from services.xfa_pdf_extractor import XFAPdfExtractor
 from services.form_mapper import FormMapper
 from services.sf424_validator import SF424Validator
+from services.form_type_detector import FormTypeDetector, FormType
+from services.ppop_field_mapper import PPOPFieldMapper
+from services.ppop_validator import PPOPValidator
 from services.ai_service import AIService
 from services.session_manager import SessionManager
+from config.runtime import resolve_app_path
 from datetime import datetime
-
-# Get backend URL from environment or use default
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
 
 pdf_bp = Blueprint('pdf', __name__)
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'uploads')
+# Must match the path used by app.py when constructing the SessionManager,
+# otherwise scheduled cleanup and orphan sweep won't see these files.
+UPLOAD_FOLDER = resolve_app_path(os.getenv('TEMP_UPLOAD_PATH'), 'data/uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 extractor = XFAPdfExtractor()
+form_detector = FormTypeDetector()
 mapper = FormMapper()
+ppop_mapper = PPOPFieldMapper()
 validator = SF424Validator()
+ppop_validator = PPOPValidator()
 ai_service = AIService()
-session_manager = SessionManager('data/sessions.json')
+session_manager = SessionManager(
+    resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json'),
+    upload_folder=UPLOAD_FOLDER,
+)
 
 @pdf_bp.route('/api/pdf/upload', methods=['POST'])
 def upload_pdf():
@@ -52,19 +61,38 @@ def upload_pdf():
         upload_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.pdf")
         file.save(upload_path)
         
+        # Quick PDF structure validation
         is_valid = validator.validate_pdf_structure(upload_path)
         
         if not is_valid:
             os.remove(upload_path)
             return jsonify({
-                'error': 'Invalid PDF structure. Please upload a valid SF-424 form.',
+                'error': 'Invalid PDF structure. Please upload a valid PDF form.',
                 'status': 'invalid'
             }), 400
+        
+        # Detect form type
+        try:
+            xfa_data = extractor.extract_form_fields(upload_path)
+            detected_form_type = form_detector.detect_form_type(xfa_data)
+            
+            # Reject unsupported form types
+            if detected_form_type == FormType.UNKNOWN:
+                os.remove(upload_path)
+                return jsonify({
+                    'error': 'Unsupported form type. Please upload an SF-424 or PPOP form.',
+                    'status': 'unsupported_form_type'
+                }), 400
+        except Exception as e:
+            # If form type detection fails, allow upload but will be caught in analyze
+            print(f"Form type detection warning during upload: {str(e)}")
+            detected_form_type = FormType.UNKNOWN
         
         return jsonify({
             'file_id': file_id,
             'file_name': file.filename,
             'file_size': file_size,
+            'form_type': detected_form_type.value,
             'status': 'valid',
             'message': 'File uploaded successfully'
         }), 200
@@ -90,11 +118,51 @@ def analyze_pdf():
         if not os.path.exists(pdf_path):
             return jsonify({'error': 'File not found'}), 404
         
+        # Extract form fields
         xfa_data = extractor.extract_form_fields(pdf_path)
         
-        form_data = mapper.map_to_sf424(xfa_data)
+        # Detect form type
+        detected_form_type = form_detector.detect_form_type(xfa_data)
         
-        validation_errors_obj = validator.validate_form_data(form_data)
+        # Reject unsupported form types
+        if detected_form_type == FormType.UNKNOWN:
+            return jsonify({
+                'error': 'Unsupported form type. Please upload an SF-424 or PPOP form.',
+                'form_type': 'UNKNOWN'
+            }), 400
+        
+        # Route to appropriate validator based on form type
+        if detected_form_type == FormType.SF424:
+            form_data = mapper.map_to_sf424(xfa_data)
+            validation_errors_obj = validator.validate_form_data(form_data)
+        elif detected_form_type == FormType.PPOP_FORM:
+            ppop_data = ppop_mapper.map_to_ppop(xfa_data)
+            validation_errors_obj = ppop_validator.validate_ppop_form(ppop_data)
+            # Convert PPOP data to form_data format for AI context
+            form_data = {
+                'form_type': 'PPOP',
+                'primary_site': {
+                    'organization_name': ppop_data.primary_site.organization_name,
+                    'uei': ppop_data.primary_site.uei,
+                    'street': ppop_data.primary_site.street,
+                    'city': ppop_data.primary_site.city,
+                    'state': ppop_data.primary_site.state_code,
+                    'zip': ppop_data.primary_site.zip5,
+                    'congressional_district': ppop_data.primary_site.congressional_district
+                }
+            }
+            if ppop_data.other_site:
+                form_data['other_site'] = {
+                    'organization_name': ppop_data.other_site.organization_name,
+                    'uei': ppop_data.other_site.uei,
+                    'street': ppop_data.other_site.street,
+                    'city': ppop_data.other_site.city,
+                    'state': ppop_data.other_site.state_code,
+                    'zip': ppop_data.other_site.zip5,
+                    'congressional_district': ppop_data.other_site.congressional_district
+                }
+        else:
+            return jsonify({'error': 'Unsupported form type'}), 400
         
         # Generate AI guidance for each error dynamically
         
@@ -124,10 +192,15 @@ def analyze_pdf():
         if fon:
             funding_opportunity = validator.db_service.get_funding_cycle_by_code(fon)
         
-        # Build structured validation response
-        app_type = form_data.get('application_type', 'Not specified')
-        grant_number = form_data.get('federal_award_identifier')
-        app_type_normalized = validator._normalize_application_type(app_type)
+        # Build structured validation response based on form type
+        if detected_form_type == FormType.SF424:
+            app_type = form_data.get('application_type', 'Not specified')
+            grant_number = form_data.get('federal_award_identifier')
+            app_type_normalized = validator._normalize_application_type(app_type)
+        else:
+            app_type = None
+            grant_number = None
+            app_type_normalized = None
         
         if validation_errors:
             consistent_section = "<strong>Here is a quick summary:</strong><br><br>"
@@ -139,19 +212,27 @@ def analyze_pdf():
                     error_field_names.add(error_obj.field_name.lower())
             
             # Define all major fields that are validated with their form data keys
-            all_fields = [
-                ('UEI', 'samuei'),
-                ('Type of Application', 'application_type'),
-                ('Funding Opportunity Number', 'funding_opportunity_number'),
-            ]
-            
-            # Add Grant Number if NOT "New only" funding opportunity
-            # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
-            if (grant_number and 
-                app_type_normalized in ['2', '3'] and
-                funding_opportunity and 
-                funding_opportunity.type_of_app_by_fo != 1):
-                all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
+            if detected_form_type == FormType.SF424:
+                all_fields = [
+                    ('UEI', 'samuei'),
+                    ('Type of Application', 'application_type'),
+                    ('Funding Opportunity Number', 'funding_opportunity_number'),
+                ]
+                
+                # Add Grant Number if NOT "New only" funding opportunity
+                # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
+                if (grant_number and 
+                    app_type_normalized in ['2', '3'] and
+                    funding_opportunity and 
+                    funding_opportunity.type_of_app_by_fo != 1):
+                    all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
+            else:
+                # PPOP form fields
+                all_fields = [
+                    ('Primary Site Address', 'primary_site'),
+                ]
+                if form_data.get('other_site'):
+                    all_fields.append(('Other Site Address', 'other_site'))
             
             # Show fields that need fixes with cross marks FIRST
             error_fields = []
@@ -195,10 +276,9 @@ def analyze_pdf():
                     location_text = re.sub(r'(Page \d+, Field \w+)', r'<strong>\1</strong>', location_text)
                     consistent_section += f"&nbsp;&nbsp;&nbsp;• {location_text}"
                     
-                    # Add image if available (convert to absolute URL and make clickable)
+                    # Add image if available (use relative URL — frontend proxies /static/* to backend)
                     if error_obj.image_path:
-                        absolute_image_url = f"{BACKEND_URL}{error_obj.image_path}"
-                        consistent_section += f'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{absolute_image_url}" target="_blank"><img src="{absolute_image_url}" alt="{error_obj.field_name} field" style="max-width: 500px; border: 1px solid #ddd; margin-top: 5px; border-radius: 4px; cursor: pointer;" title="Click to open full size"></a>'
+                        consistent_section += f'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{error_obj.image_path}" target="_blank"><img src="{error_obj.image_path}" alt="{error_obj.field_name} field" style="max-width: 500px; border: 1px solid #ddd; margin-top: 5px; border-radius: 4px; cursor: pointer;" title="Click to open full size"></a>'
                     
                     consistent_section += "<br>"
                 
@@ -222,47 +302,69 @@ def analyze_pdf():
                 consistent_section += "<br>"
         else:
             consistent_section = "<strong>Here is a summary:</strong><br><br>"
-            consistent_section += "✅ <strong>Application has passed the validations</strong><br><br>"
             
-            # Show verified fields dynamically - same logic as failure case
-            all_fields = [
-                ('UEI', 'samuei'),
-                ('Application Type', 'application_type'),
-                ('Funding Opportunity Number', 'funding_opportunity_number'),
-            ]
+            if detected_form_type == FormType.SF424:
+                consistent_section += "✅ <strong>Application has passed the validations</strong><br><br>"
+                
+                # Show verified fields dynamically - same logic as failure case
+                all_fields = [
+                    ('UEI', 'samuei'),
+                    ('Application Type', 'application_type'),
+                    ('Funding Opportunity Number', 'funding_opportunity_number'),
+                ]
+                
+                # Add Grant Number if NOT "New only" funding opportunity
+                # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
+                if (grant_number and 
+                    app_type_normalized in ['2', '3'] and
+                    funding_opportunity and 
+                    funding_opportunity.type_of_app_by_fo != 1):
+                    all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
+                
+                passed_fields = []
+                for field_name, form_key in all_fields:
+                    # Check if field has value (no errors since validation passed)
+                    if form_data.get(form_key):
+                        passed_fields.append(field_name)
+                
+                if passed_fields:
+                    consistent_section += "<strong>Fields validated successfully:</strong><br>"
+                    for field in passed_fields:
+                        consistent_section += f"&nbsp;&nbsp;&nbsp;✅ {field}<br>"
+                    consistent_section += "<br>"
+                
+                consistent_section += "<strong>All validation checks passed:</strong><br>"
+                consistent_section += f"✅ <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')}<br>"
+                if fon:
+                    consistent_section += f"✅ <strong>Funding Opportunity:</strong> {fon}<br>"
+                consistent_section += f"✅ <strong>Application Type:</strong> {app_type}<br>"
+                
+                # Show Grant Number only if NOT "New only" funding opportunity
+                if (grant_number and 
+                    app_type_normalized in ['2', '3'] and
+                    funding_opportunity and 
+                    funding_opportunity.type_of_app_by_fo != 1):
+                    consistent_section += f"✅ <strong>Grant Number:</strong> {grant_number}<br>"
             
-            # Add Grant Number if NOT "New only" funding opportunity
-            # app_type_normalized returns: '1'=new, '2'=continuation, '3'=revision
-            if (grant_number and 
-                app_type_normalized in ['2', '3'] and
-                funding_opportunity and 
-                funding_opportunity.type_of_app_by_fo != 1):
-                all_fields.insert(1, ('Grant Number', 'federal_award_identifier'))
-            
-            passed_fields = []
-            for field_name, form_key in all_fields:
-                # Check if field has value (no errors since validation passed)
-                if form_data.get(form_key):
-                    passed_fields.append(field_name)
-            
-            if passed_fields:
-                consistent_section += "<strong>Fields validated successfully:</strong><br>"
-                for field in passed_fields:
-                    consistent_section += f"&nbsp;&nbsp;&nbsp;✅ {field}<br>"
+            elif detected_form_type == FormType.PPOP_FORM:
+                consistent_section += "✅ <strong>PPOP Form has passed the validations</strong><br><br>"
+                consistent_section += "<strong>Addresses validated successfully:</strong><br>"
+                
+                # Primary Site
+                primary = form_data.get('primary_site', {})
+                if primary:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;✅ <strong>Primary Site:</strong> {primary.get('street', '')}, {primary.get('city', '')}, {primary.get('state', '')} {primary.get('zip', '')}<br>"
+                    if primary.get('congressional_district'):
+                        consistent_section += f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Congressional District: {primary.get('congressional_district')}<br>"
+                
+                # Other Site
+                other = form_data.get('other_site')
+                if other:
+                    consistent_section += f"&nbsp;&nbsp;&nbsp;✅ <strong>Other Site:</strong> {other.get('street', '')}, {other.get('city', '')}, {other.get('state', '')} {other.get('zip', '')}<br>"
+                    if other.get('congressional_district'):
+                        consistent_section += f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Congressional District: {other.get('congressional_district')}<br>"
+                
                 consistent_section += "<br>"
-            
-            consistent_section += "<strong>All validation checks passed:</strong><br>"
-            consistent_section += f"✅ <strong>UEI:</strong> {form_data.get('samuei', 'Not provided')}<br>"
-            if fon:
-                consistent_section += f"✅ <strong>Funding Opportunity:</strong> {fon}<br>"
-            consistent_section += f"✅ <strong>Application Type:</strong> {app_type}<br>"
-            
-            # Show Grant Number only if NOT "New only" funding opportunity
-            if (grant_number and 
-                app_type_normalized in ['2', '3'] and
-                funding_opportunity and 
-                funding_opportunity.type_of_app_by_fo != 1):
-                consistent_section += f"✅ <strong>Grant Number:</strong> {grant_number}<br>"
         
         # No AI-generated guidance needed anymore
         # When validation fails: guidance is already embedded in each error
@@ -283,6 +385,7 @@ def analyze_pdf():
         
         return jsonify({
             'file_id': file_id,
+            'form_type': detected_form_type.value,
             'form_data': form_data,
             'validation_errors': validation_errors,
             'validation_status': 'PASSED' if len(validation_errors) == 0 else 'FAILED',
