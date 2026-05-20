@@ -37,7 +37,7 @@ class DatabaseService:
         self.conn = None
     
     def _init_sql_server(self):
-        """Initialize SQL Server connection using pyodbc"""
+        """Initialize SQL Server connection using pyodbc (with fallback to JSON)"""
         import pyodbc
         
         server = os.getenv('DB_SERVER', 'localhost')
@@ -55,8 +55,15 @@ class DatabaseService:
             f'TrustServerCertificate=yes;'
         )
         
-        self.conn = pyodbc.connect(connection_string)
-        self.data = None
+        try:
+            self.conn = pyodbc.connect(connection_string, timeout=3)
+            self.data = None
+            print(f"✓ Connected to SQL Server: {server}/{database}")
+        except Exception as e:
+            print(f"⚠️  SQL Server connection failed: {str(e)[:100]}")
+            print("⚠️  Falling back to JSON mock data")
+            self.use_sql_server = False
+            self._init_json()
     
     def _load_json(self) -> Dict[str, Any]:
         """Load mock data from JSON"""
