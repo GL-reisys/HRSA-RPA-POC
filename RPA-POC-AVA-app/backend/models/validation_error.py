@@ -87,6 +87,7 @@ class ValidationErrorFactory:
 
     @staticmethod
     def org_name_mismatch(submitted_name: str, expected_name: str, uei: str) -> ValidationError:
+        guidance = f"• Ensure the Organization Name matches the registered name in SAM.gov for UEI {uei}.<br>• The expected name is: {expected_name}<br>• Update the Organization Name field in the SF-424 form to match the SAM.gov registration."
         return ValidationErrorFactory._create(
             "Organization Name is incorrect.",
             f"Organization name mismatch for UEI {uei}. Submitted: {submitted_name}. Expected registered name in SAM.gov: {expected_name}.",
@@ -94,7 +95,7 @@ class ValidationErrorFactory:
             page_number=1,
             field_location="Page 1, Field 8a",
             current_value=submitted_name,
-            guidance=None
+            guidance=guidance
         )
 
     @staticmethod

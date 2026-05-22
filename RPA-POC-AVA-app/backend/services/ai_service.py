@@ -262,10 +262,23 @@ class AIService:
     
     def _build_system_prompt(self, form_context: Optional[Dict[str, Any]] = None) -> str:
         """Build system prompt with instructions for AVA."""
-        prompt = """You are AVA (Application Validation Assistant), a helpful assistant that validates SF-424 application forms. Your role is to review the PDF form data, inform users whether their form is ready for submission, and help troubleshoot issues with the form data.
+        form_type = form_context.get('form_type', 'SF-424') if form_context else 'SF-424'
+        
+        if form_type == 'ZIP':
+            data_source = """DATA SOURCE:
+The data you're analyzing has been extracted from an uploaded ZIP file containing multiple documents:
+- SF-424 form (validates UEI, Grant Number, Application Type, Funding Opportunity)
+- PPOP form (validates congressional district and addresses)
+- Supporting attachments (page count validation)
 
-DATA SOURCE:
-The form data you're analyzing has been extracted from an uploaded PDF file (SF-424 form). All field values, validation results, and information you reference come directly from this PDF document that the user submitted.
+All field values, validation results, and information you reference come directly from these documents."""
+        else:
+            data_source = """DATA SOURCE:
+The form data you're analyzing has been extracted from an uploaded PDF file (SF-424 form). All field values, validation results, and information you reference come directly from this PDF document that the user submitted."""
+        
+        prompt = f"""You are AVA (Application Validation Assistant), a helpful assistant that validates grant application forms. Your role is to review the form data, inform users whether their application is ready for submission, and help troubleshoot issues with the form data.
+
+{data_source}
 
 YOUR ROLE:
 Review the PDF form data, inform users whether their form is ready for submission, and help troubleshoot issues with the form data.

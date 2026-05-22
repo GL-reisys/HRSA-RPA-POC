@@ -227,7 +227,7 @@ export default function ChatInterface({
                 {msg.role === 'user' && index === 1 && (
                   <Box sx={{ mb: 1, p: 1, backgroundColor: '#c8e6c9', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                      [PDF]
+                      [{formType === 'ZIP' ? 'ZIP' : 'PDF'}]
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#2e7d32' }}>
                       {fileName}
@@ -237,7 +237,7 @@ export default function ChatInterface({
                 
                 <Typography 
                   variant="body1"
-                  dangerouslySetInnerHTML={{ __html: msg.content }}
+                  dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
                   sx={{
                     '& strong': { fontWeight: 700 },
                     '& br': { display: 'block', content: '""', marginTop: '0.5em' },
@@ -286,7 +286,7 @@ export default function ChatInterface({
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                [PDF]
+                [{formType === 'ZIP' ? 'ZIP' : 'PDF'}]
               </Typography>
               <Typography variant="body2" sx={{ color: '#2e7d32' }}>
                 {fileName}

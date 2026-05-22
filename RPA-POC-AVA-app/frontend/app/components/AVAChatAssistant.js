@@ -285,7 +285,7 @@ export default function AVAChatAssistant() {
         aiMessage += `Attachments found: ${attachments.length}\n`;
         if (convertedFiles.length > 0) {
           aiMessage += `Attachments converted to PDF: ${convertedFiles.length}\n\n`;
-          aiMessage += 'Converted files:\n';
+          aiMessage += '**Converted files:**\n';
           convertedFiles.forEach(f => {
             aiMessage += `   • ${f.name}\n`;
           });
