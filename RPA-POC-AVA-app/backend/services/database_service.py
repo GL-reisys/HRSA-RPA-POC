@@ -363,6 +363,85 @@ class DatabaseService:
         
         return db_name == input_name, org.organization_name
     
+    # ========================================
+    # GetMaxAttachmentPageCount
+    # ========================================
+    
+    def get_max_attachment_page_count(self, announcement_number: str) -> Optional[int]:
+        """
+        Get the maximum attachment page count for a funding opportunity.
+        Maps to: GetMaxAttachmentPageCount statement
+        Returns: MaxAttachmentPageCount as integer or None if not found
+        """
+        if self.use_sql_server:
+            cursor = self.conn.cursor()
+            cursor.execute(self.queries['get_max_attachment_page_count'], (announcement_number,))
+            row = cursor.fetchone()
+            if row and row[0] is not None:
+                return int(row[0])
+            return None
+        else:
+            for fc_data in self.data.get('funding_cycles', []):
+                if fc_data.get('announcement_number') == announcement_number:
+                    max_att_pages = fc_data.get('max_attachment_page_count')
+                    if max_att_pages is not None:
+                        return int(max_att_pages)
+            return None
+    
+    # ========================================
+    # GetPackageForms
+    # ========================================
+    
+    def get_package_forms(self, announcement_number: str) -> List[str]:
+        """
+        Get list of form names in the package for this funding opportunity.
+        Forms should be excluded from page count validation.
+        Returns: List of form names (e.g., ['SF-424', 'PerformanceSite'])
+        """
+        if self.use_sql_server:
+            cursor = self.conn.cursor()
+            cursor.execute(self.queries['get_package_forms'], (announcement_number,))
+            forms = []
+            for row in cursor.fetchall():
+                forms.append(row[0])  # FormName
+            return forms
+        else:
+            for fc_data in self.data.get('funding_cycles', []):
+                if fc_data.get('announcement_number') == announcement_number:
+                    return fc_data.get('package_forms', [])
+            return []
+    
+    # ========================================
+    # GetPackageAttachments
+    # ========================================
+    
+    def get_package_attachments(self, announcement_number: str) -> List[Dict[str, Any]]:
+        """
+        Get list of expected attachments with file prefixes for this funding opportunity.
+        Returns: List of dicts with attachment info including FilePrefix
+        """
+        if self.use_sql_server:
+            cursor = self.conn.cursor()
+            cursor.execute(self.queries['get_package_attachments'], (announcement_number,))
+            attachments = []
+            for row in cursor.fetchall():
+                attachments.append({
+                    'announcement_number': row[0],
+                    'package_name': row[1],
+                    'ehb_package_name': row[2],
+                    'purpose_code': row[3],
+                    'purpose_name': row[4],
+                    'description': row[5],
+                    'file_prefix': row[6]
+                })
+            return attachments
+        else:
+            for fc_data in self.data.get('funding_cycles', []):
+                if fc_data.get('announcement_number') == announcement_number:
+                    att_list = fc_data.get('package_attachments', [])
+                    return [{'name': att, 'file_prefix': att} for att in att_list]
+            return []
+    
     def close(self):
         """Close database connection if using SQL Server"""
         if self.use_sql_server and self.conn:

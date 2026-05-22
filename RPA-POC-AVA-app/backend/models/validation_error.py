@@ -32,10 +32,15 @@ class ValidationErrorFactory:
         )
 
     @staticmethod
-    def required_field(field_name: str, field_code: str) -> ValidationError:
+    def required_field(field_name: str, field_code: str, page: int = 1, field_location: str = None) -> ValidationError:
+        guidance = f"• Ensure that the {field_name} field is filled out in the SF-424 form before submission.<br>• Double-check that all required fields are completed."
         return ValidationErrorFactory._create(
             f"{field_name} is required.",
             f"Required field missing: {field_name} ({field_code}).",
+            field_name=field_name,
+            page_number=page,
+            field_location=field_location,
+            guidance=guidance
         )
 
     @staticmethod
