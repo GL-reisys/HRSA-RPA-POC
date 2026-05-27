@@ -76,9 +76,12 @@ class ComprehensiveZipProcessorV2:
         filename_lower = filename.lower()
         
         # First check for common form patterns regardless of database
-        # SF-424 variations: SF424_4, SF-424, sf424 (but NOT SF-424A which is a different form)
-        if ('sf424_4' in filename_lower or 'sf-424_4' in filename_lower) and 'sf424a' not in filename_lower and 'sf-424a' not in filename_lower:
-            return 'SF-424'
+        # SF-424 variations: Accept any filename containing "sf424" or "sf-424" (but NOT SF-424A which is a different form)
+        # Examples: SF424_4_0, SF-424, sf424, Form_SF424, SF424_Custom, etc.
+        if ('sf424' in filename_lower or 'sf-424' in filename_lower):
+            # Exclude SF-424A (a different form)
+            if 'sf424a' not in filename_lower and 'sf-424a' not in filename_lower:
+                return 'SF-424'
         
         # PPOP/PerformanceSite variations: PerformanceSite_4, PPOP
         if 'performancesite_4' in filename_lower or 'ppop' in filename_lower:

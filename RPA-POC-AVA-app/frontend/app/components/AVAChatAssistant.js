@@ -129,10 +129,10 @@ export default function AVAChatAssistant() {
       const passedCount = [sf424Passed, ppopPassed, pageCountPassed].filter(Boolean).length;
       const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !pageCountPassed].filter(Boolean).length;
       
-      aiMessage += '<div style="background: white; border-radius: 12px; padding: 14px 18px; margin: 0 auto 20px auto; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
+      aiMessage += '<div style="background: white; border-radius: 12px; padding: 10px 14px; margin: 0 auto 20px auto; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
       
       // Title with clipboard icon
-      aiMessage += '<div style="display: flex; align-items: center; margin-bottom: 10px;">\n';
+      aiMessage += '<div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">\n';
       aiMessage += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>\n';
       aiMessage += '<div style="font-size: 19px; font-weight: 700; color: #1e293b;">Validation Summary</div>\n';
       aiMessage += '</div>\n';
@@ -160,7 +160,7 @@ export default function AVAChatAssistant() {
       
       if (hasPPOP) {
         aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PPOP Form</div>\n';
+        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PerformanceSite_4_0</div>\n';
         if (ppopPassed) {
           aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
         } else {
@@ -171,7 +171,7 @@ export default function AVAChatAssistant() {
       
       if (hasPageCount) {
         aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Page Count</div>\n';
+        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Application Page Limit</div>\n';
         if (pageCountPassed) {
           aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
         } else {
@@ -188,7 +188,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📄 SF-424 Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -277,7 +277,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📍 PPOP Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite_4_0 Validation</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ All PPOP validations passed\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -291,37 +291,38 @@ export default function AVAChatAssistant() {
       
       // 4. PAGE COUNT SECTION
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📎 Page Count Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         const att = zipResult.attachments;
         const countedFiles = att.files || [];
         const excludedFiles = att.excluded_files || [];
         
+        // Show total pages first
+        if (att.max_attachment_page_count) {
+          aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+        } else {
+          aiMessage += `**Total Pages: ${att.total_pages}**`;
+        }
+        if (pageCountPassed) {
+          aiMessage += ' ✅\n\n';
+        } else if (att.page_count_ok === false) {
+          aiMessage += ' ❌ EXCEEDED\n\n';
+        } else {
+          aiMessage += '\n\n';
+        }
+        
         // Show counted files
         if (countedFiles.length > 0) {
-          aiMessage += '**Files counted towards page limit:**\n';
+          aiMessage += '**Attachments/items that count toward the page limit:**\n';
           countedFiles.forEach(f => {
             const pageText = f.pages === 1 ? 'page' : 'pages';
-            aiMessage += `   • ${f.name} (${f.pages} ${pageText})\n`;
+            aiMessage += `• ${f.name} (${f.pages} ${pageText})\n`;
           });
-          
-          const totalPageText = att.total_pages === 1 ? 'page' : 'pages';
-          aiMessage += `\n**Total: ${att.total_pages} ${totalPageText}**`;
-          if (att.max_attachment_page_count) {
-            aiMessage += ` (Maximum Page Limit: ${att.max_attachment_page_count})`;
-          }
-          if (pageCountPassed) {
-            aiMessage += ' ✅\n';
-          } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n';
-          } else {
-            aiMessage += '\n';
-          }
           aiMessage += '\n';
         }
         
         // Show excluded files
         if (excludedFiles.length > 0) {
-          aiMessage += '**Files excluded from page count:**\n';
+          aiMessage += '**Attachments/items that do not count toward the page limit:**\n';
           excludedFiles.forEach(f => {
             aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
           });
@@ -441,10 +442,10 @@ export default function AVAChatAssistant() {
       const passedCount = [sf424Passed, ppopPassed, pageCountPassed].filter(Boolean).length;
       const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !pageCountPassed].filter(Boolean).length;
       
-      aiMessage += '<div style="background: white; border-radius: 12px; padding: 14px 18px; margin: 0 auto 20px auto; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
+      aiMessage += '<div style="background: white; border-radius: 12px; padding: 10px 14px; margin: 0 auto 20px auto; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
       
       // Title with clipboard icon
-      aiMessage += '<div style="display: flex; align-items: center; margin-bottom: 10px;">\n';
+      aiMessage += '<div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">\n';
       aiMessage += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>\n';
       aiMessage += '<div style="font-size: 19px; font-weight: 700; color: #1e293b;">Validation Summary</div>\n';
       aiMessage += '</div>\n';
@@ -472,7 +473,7 @@ export default function AVAChatAssistant() {
       
       if (hasPPOP) {
         aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PPOP Form</div>\n';
+        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PerformanceSite_4_0</div>\n';
         if (ppopPassed) {
           aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
         } else {
@@ -483,7 +484,7 @@ export default function AVAChatAssistant() {
       
       if (hasPageCount) {
         aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Page Count</div>\n';
+        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Application Page Limit</div>\n';
         if (pageCountPassed) {
           aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
         } else {
@@ -500,7 +501,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📄 SF-424 Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -589,7 +590,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📍 PPOP Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite_4_0 Validation</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ All PPOP validations passed\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -603,37 +604,38 @@ export default function AVAChatAssistant() {
       
       // 4. PAGE COUNT SECTION
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📎 Page Count Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 16px 0 12px 0; text-align: center; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         const att = zipResult.attachments;
         const countedFiles = att.files || [];
         const excludedFiles = att.excluded_files || [];
         
+        // Show total pages first
+        if (att.max_attachment_page_count) {
+          aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+        } else {
+          aiMessage += `**Total Pages: ${att.total_pages}**`;
+        }
+        if (pageCountPassed) {
+          aiMessage += ' ✅\n\n';
+        } else if (att.page_count_ok === false) {
+          aiMessage += ' ❌ EXCEEDED\n\n';
+        } else {
+          aiMessage += '\n\n';
+        }
+        
         // Show counted files
         if (countedFiles.length > 0) {
-          aiMessage += '**Files counted towards page limit:**\n';
+          aiMessage += '**Attachments/items that count toward the page limit:**\n';
           countedFiles.forEach(f => {
             const pageText = f.pages === 1 ? 'page' : 'pages';
-            aiMessage += `   • ${f.name} (${f.pages} ${pageText})\n`;
+            aiMessage += `• ${f.name} (${f.pages} ${pageText})\n`;
           });
-          
-          const totalPageText = att.total_pages === 1 ? 'page' : 'pages';
-          aiMessage += `\n**Total: ${att.total_pages} ${totalPageText}**`;
-          if (att.max_attachment_page_count) {
-            aiMessage += ` (Maximum Page Limit: ${att.max_attachment_page_count})`;
-          }
-          if (pageCountPassed) {
-            aiMessage += ' ✅\n';
-          } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n';
-          } else {
-            aiMessage += '\n';
-          }
           aiMessage += '\n';
         }
         
         // Show excluded files
         if (excludedFiles.length > 0) {
-          aiMessage += '**Files excluded from page count:**\n';
+          aiMessage += '**Attachments/items that do not count toward the page limit:**\n';
           excludedFiles.forEach(f => {
             aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
           });
@@ -679,22 +681,6 @@ export default function AVAChatAssistant() {
           textAlign: 'center'
         }}
       >
-        <Box sx={{ mb: 4 }}>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700,
-              color: '#1e4d5a',
-              mb: 1
-            }}
-          >
-            AVA
-          </Typography>
-          <Typography variant="h6" sx={{ color: '#424242', fontWeight: 500 }}>
-            Application Validation Assistant
-          </Typography>
-        </Box>
-
         {uploading ? (
           <Box sx={{ py: 4 }}>
             <CircularProgress size={60} sx={{ mb: 3, color: '#1e4d5a' }} />

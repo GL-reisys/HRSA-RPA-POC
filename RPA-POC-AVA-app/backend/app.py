@@ -29,6 +29,8 @@ from controllers.document_controller import document_bp
 from controllers.pdf_validation_controller import pdf_bp
 from controllers.zip_upload_controller import zip_bp
 from services.session_manager import SessionManager
+from services.file_lifecycle_manager import FileLifecycleManager
+from services.logging_service import get_logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from config.runtime import get_allowed_origins, get_port, is_debug_enabled, resolve_app_path
 
@@ -64,6 +66,17 @@ def create_app():
     session_path = resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json')
     session_manager = SessionManager(session_path, upload_folder=data_uploads)
 
+    # Initialize logging service
+    logger = get_logger()
+    
+    # Initialize file lifecycle manager for ZIP uploads
+    zip_uploads_dir = resolve_app_path('uploads', 'uploads')
+    lifecycle_manager = FileLifecycleManager(
+        uploads_dir=zip_uploads_dir,
+        sessions_file=resolve_app_path('data/sessions.json', 'data/sessions.json'),
+        ttl_hours=24
+    )
+
     scheduler = BackgroundScheduler()
     # Expire sessions every 15 min — also deletes the matching <file_id>.pdf.
     # With the default 30-min TTL, worst-case session retention is ~45 min.
@@ -77,6 +90,12 @@ def create_app():
     # in-flight uploads (upload → analyze) are not affected.
     scheduler.add_job(
         func=session_manager.sweep_orphan_uploads,
+        trigger='interval',
+        hours=1,
+    )
+    # Add ZIP file cleanup job
+    scheduler.add_job(
+        func=lifecycle_manager.cleanup_expired_files,
         trigger='interval',
         hours=1,
     )

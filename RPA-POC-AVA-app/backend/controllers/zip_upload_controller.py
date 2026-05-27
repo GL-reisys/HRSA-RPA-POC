@@ -8,9 +8,13 @@ Handles zip file uploads containing:
 from flask import Blueprint, request, jsonify, send_file
 import os
 import uuid
+import re
 from services.comprehensive_zip_processor_v2 import ComprehensiveZipProcessorV2
 from services.database_service import DatabaseService
 from services.session_manager import SessionManager
+from services.file_validator import FileValidator
+from services.logging_service import get_logger
+from services.file_lifecycle_manager import FileLifecycleManager
 from config.runtime import resolve_app_path
 from werkzeug.utils import secure_filename
 
@@ -24,6 +28,11 @@ session_manager = SessionManager(
     resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json'),
     upload_folder=UPLOAD_FOLDER,
 )
+
+# Initialize file validator and logger
+file_validator = FileValidator()
+logger = get_logger()
+lifecycle_manager = FileLifecycleManager()
 
 # Initialize database service for validations (lazy initialization)
 def get_db_service():
@@ -54,17 +63,41 @@ def upload_zip():
     print("\n=== ZIP UPLOAD ENDPOINT HIT ===")
     print(f"Request method: {request.method}")
     print(f"Request files: {request.files}")
+    
+    # Get client IP for logging
+    client_ip = logger.get_client_ip(request)
+    user_agent = request.headers.get('User-Agent', 'unknown')
+    
     try:
         if 'file' not in request.files:
+            logger.log_error(None, 'VALIDATION_ERROR', 'No file provided', client_ip)
             return jsonify({'error': 'No file provided'}), 400
         
         file = request.files['file']
         
         if file.filename == '':
+            logger.log_error(None, 'VALIDATION_ERROR', 'No file selected', client_ip)
             return jsonify({'error': 'No file selected'}), 400
         
         if not file.filename.lower().endswith('.zip'):
+            logger.log_error(None, 'VALIDATION_ERROR', f'Invalid file type: {file.filename}', client_ip)
             return jsonify({'error': 'Invalid file type. Only ZIP files are allowed.'}), 400
+        
+        # Validate ZIP filename format (must match HRSA-XX-YYY pattern)
+        # Extract filename without extension
+        filename_without_ext = file.filename.rsplit('.', 1)[0]
+        # Pattern: HRSA-YY-NNN where YY is 2-digit year and NNN is 3-digit funding opportunity number
+        hrsa_pattern = re.compile(r'^HRSA-\d{2}-\d{3}$', re.IGNORECASE)
+        
+        if not hrsa_pattern.match(filename_without_ext):
+            error_msg = f'Invalid ZIP filename format. Expected format: HRSA-XX-YYY (e.g., HRSA-26-091). Received: {file.filename}'
+            logger.log_error(None, 'FILENAME_VALIDATION_ERROR', error_msg, client_ip)
+            return jsonify({
+                'error': 'Invalid ZIP filename format',
+                'details': 'ZIP filename must be in the format HRSA-XX-YYY where XX is the year and YYY is the funding opportunity number.',
+                'example': 'HRSA-26-091.zip',
+                'received': file.filename
+            }), 400
         
         # Check file size
         file.seek(0, os.SEEK_END)
@@ -73,6 +106,7 @@ def upload_zip():
         
         # 200MB limit for zip files
         if file_size > 200 * 1024 * 1024:
+            logger.log_error(None, 'FILE_SIZE_ERROR', f'File too large: {file_size} bytes', client_ip)
             return jsonify({'error': 'File size exceeds 200MB limit'}), 413
         
         # Generate unique ID and save file
@@ -80,6 +114,28 @@ def upload_zip():
         safe_filename_str = secure_filename(file.filename)
         upload_path = os.path.join(UPLOAD_FOLDER, f"{file_id}_{safe_filename_str}")
         file.save(upload_path)
+        
+        # Log upload
+        logger.log_upload(file_id, file.filename, file_size, client_ip, user_agent)
+        
+        # Validate ZIP file
+        validation_result = file_validator.validate_zip_file(upload_path)
+        if not validation_result['valid']:
+            logger.log_security_event(
+                'MALICIOUS_FILE_DETECTED',
+                f"File: {file.filename}, Errors: {', '.join(validation_result['errors'])}",
+                client_ip,
+                severity='ERROR'
+            )
+            # Clean up invalid file
+            try:
+                os.remove(upload_path)
+            except:
+                pass
+            return jsonify({
+                'error': 'File validation failed',
+                'details': validation_result['errors']
+            }), 400
         
         # Process the zip file using Comprehensive Processor V2
         try:
@@ -92,6 +148,20 @@ def upload_zip():
             print(f"Processing ZIP: {upload_path}")
             result = processor.process_zip(upload_path)
             print(f"Processing complete. Success: {result.get('success')}")
+            
+            # Log validation results
+            if result.get('sf424_validation'):
+                sf424_result = 'PASS' if result['sf424_validation'].get('extracted') else 'FAIL'
+                logger.log_validation(file_id, 'SF424', sf424_result, client_ip)
+            
+            if result.get('ppop_validation'):
+                ppop_result = 'PASS' if result['ppop_validation'].get('extracted') else 'FAIL'
+                logger.log_validation(file_id, 'PPOP', ppop_result, client_ip)
+            
+            if result.get('attachments'):
+                page_limit_ok = result['attachments'].get('page_count_ok', True)
+                page_result = 'PASS' if page_limit_ok else 'FAIL'
+                logger.log_validation(file_id, 'PAGE_COUNT', page_result, client_ip)
             
             # Prepare response - include fields for display
             sf424_with_fields = result['sf424_validation'].copy() if result['sf424_validation'] else {}
@@ -162,10 +232,14 @@ def upload_zip():
             session_manager.save_session(file_id, session_data)
             print(f"Session saved for file_id: {file_id}")
             
+            # Set file expiration
+            response['expires_at'] = lifecycle_manager.set_file_expiration(file_id)
+            
             return jsonify(response), 200
             
         except Exception as e:
             print(f"ERROR during ZIP processing: {str(e)}")
+            logger.log_error(file_id, 'PROCESSING_ERROR', str(e), client_ip)
             import traceback
             traceback.print_exc()
             return jsonify({
@@ -180,6 +254,10 @@ def upload_zip():
         
     except Exception as e:
         print(f"ERROR in ZIP upload endpoint: {str(e)}")
+        try:
+            logger.log_error(None, 'UPLOAD_ERROR', str(e), client_ip)
+        except:
+            pass
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
