@@ -75,46 +75,74 @@
   ],
   "funding_cycles": [
     {
+      "funding_cycle_id": "a1b2c3d4-e5f6-4a5b-6c7d-8e9f0a1b2c3d",
+      "funding_cycle_code": "HRSA-26-007",
+      "announcement_number": "HRSA-26-007",
+      "type_of_app_by_fo": 1,
+      "program_id": 1,
+      "max_attachment_page_count": 90,
+      "package_forms": ["SF-424", "PerformanceSite"],
+      "package_attachments": ["ProjectNarrative", "BudgetNarrative"]
+    },
+    {
       "funding_cycle_id": "c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f",
       "funding_cycle_code": "HRSA-26-091",
       "announcement_number": "HRSA-26-091",
       "type_of_app_by_fo": 1,
-      "program_id": 1
+      "program_id": 1,
+      "max_attachment_page_count": 150,
+      "package_forms": ["SF-424", "PerformanceSite"],
+      "package_attachments": ["ProjectNarrative", "BudgetNarrative"]
     },
     {
       "funding_cycle_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
       "funding_cycle_code": "HRSA-26-092",
       "announcement_number": "HRSA-26-092",
       "type_of_app_by_fo": 2,
-      "program_id": 2
+      "program_id": 2,
+      "max_attachment_page_count": 120,
+      "package_forms": ["SF-424", "PerformanceSite"],
+      "package_attachments": ["ProjectNarrative"]
     },
     {
       "funding_cycle_id": "e5f6a7b8-c9d0-4e5f-2a3b-4c5d6e7f8a9b",
       "funding_cycle_code": "HRSA-26-093",
       "announcement_number": "HRSA-26-093",
       "type_of_app_by_fo": 1,
-      "program_id": 3
+      "program_id": 3,
+      "max_attachment_page_count": 100,
+      "package_forms": ["SF-424"],
+      "package_attachments": ["ProjectNarrative", "BudgetNarrative"]
     },
     {
       "funding_cycle_id": "f6a7b8c9-d0e1-4f5a-3b4c-5d6e7f8a9b0c",
       "funding_cycle_code": "HRSA-26-094",
       "announcement_number": "HRSA-26-094",
       "type_of_app_by_fo": 2,
-      "program_id": 4
+      "program_id": 4,
+      "max_attachment_page_count": 200,
+      "package_forms": ["SF-424", "PerformanceSite"],
+      "package_attachments": ["ProjectNarrative", "BudgetNarrative", "Timeline"]
     },
     {
       "funding_cycle_id": "a7b8c9d0-e1f2-4a5b-4c5d-6e7f8a9b0c1d",
       "funding_cycle_code": "HRSA-26-095",
       "announcement_number": "HRSA-26-095",
       "type_of_app_by_fo": 1,
-      "program_id": 5
+      "program_id": 5,
+      "max_attachment_page_count": 75,
+      "package_forms": ["SF-424"],
+      "package_attachments": ["ProjectNarrative"]
     },
     {
       "funding_cycle_id": "b8c9d0e1-f2a3-4b5c-6d7e-8f9a0b1c2d3e",
       "funding_cycle_code": "HRSA-26-096",
       "announcement_number": "HRSA-26-096",
       "type_of_app_by_fo": 3,
-      "program_id": 1
+      "program_id": 1,
+      "max_attachment_page_count": 180,
+      "package_forms": ["SF-424", "PerformanceSite"],
+      "package_attachments": ["ProjectNarrative", "BudgetNarrative"]
     }
   ],
   "grants": [

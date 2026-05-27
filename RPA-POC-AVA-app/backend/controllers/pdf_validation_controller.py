@@ -416,13 +416,28 @@ def chat_message():
         if not session_data:
             return jsonify({'error': 'Session not found or expired'}), 404
         
+        # Build form context - handle both PDF and ZIP sessions
+        form_data = session_data.get('form_data', {})
+        form_type = session_data.get('form_type', 'SF-424')
+        
+        # For ZIP files, extract SF-424 fields from nested structure
+        if form_type == 'ZIP' and 'sf424' in form_data:
+            sf424_data = form_data.get('sf424', {})
+            actual_form_data = sf424_data.get('fields', {})
+            validation_errors = sf424_data.get('errors', [])
+        else:
+            actual_form_data = form_data
+            validation_errors = session_data.get('validation_errors_ai', session_data.get('validation_errors', []))
+        
         # import asyncio
         response = asyncio.run(ai_service.chat_completion(
             message=message,
             chat_history=chat_history,
             form_context={
-                'form_data': session_data.get('form_data'),
-                'validation_errors': session_data.get('validation_errors_ai', session_data.get('validation_errors'))
+                'form_data': actual_form_data,
+                'validation_errors': validation_errors,
+                'form_type': form_type,
+                'zip_data': form_data if form_type == 'ZIP' else None
             }
         ))
         

@@ -74,5 +74,34 @@ QUERIES = {
         WHERE a.FundingCycleId = ?
             AND aeo.ExternalOrgId = ?
             AND a.ApplicationStatusFlag NOT IN (9, 10)
+    """,
+    
+    'get_max_attachment_page_count': """
+        SELECT MaxAttachmentPageCount 
+        FROM FundingCycles 
+        WHERE AnnouncementNumber = ?
+    """,
+    
+    'get_package_forms': """
+        SELECT DISTINCT F.FormName, F.FormDescription, F.FormVersion, F.FormURI
+        FROM GrantsGovPackage AS P
+        JOIN GrantsGovPackageForm_R AS PFR ON P.GrantsGovPackageId = PFR.GrantsGovPackageId
+        JOIN GrantsGovForm AS F ON PFR.GrantsGovFormId = F.GrantsGovFormId AND F.FormVersion = (
+            SELECT DISTINCT MAX(latestForm.FormVersion) latestFormVersion
+            FROM GrantsGovForm latestForm 
+            WHERE latestForm.FormName = F.FormName AND latestForm.InactiveDate IS NULL
+        )
+        JOIN LU_GrantsGovFormLibrary lib ON lib.LookupCode = F.GrantsGovFormLibraryCode
+        JOIN LU_GrantsGovPackageFamily AS PF ON P.GrantsGovPackageFamilyCode = PF.LookupCode
+        JOIN GrantsGovPackageEHBPackage_R gper ON P.GrantsGovPackageFamilyCode = gper.GrantsGovPackageFamilyCode
+        JOIN Lu_Package lup ON lup.PackageId = gper.EHBPackageId
+        JOIN Lu_Package_Inst lupi ON lupi.PackageId = lup.PackageId AND lupi.PackageInstDesc NOT LIKE '%GAC%'
+        JOIN FundingCycles fc ON fc.PackageId = lup.PackageId 
+        JOIN FundingCycleAnnouncement ann ON ann.GrantsGovPackageId = P.GrantsGovPackageId AND ann.AnnouncementNo = FC.AnnouncementNumber
+        WHERE FC.AnnouncementNumber = ?
     """
+    
+    # REMOVED: 'get_package_attachments' query
+    # Reason: Page count logic changed - now counts all files except SF-424, PPOP, GrantApplication, manifest
+    # No longer need database query for specific attachments
 }

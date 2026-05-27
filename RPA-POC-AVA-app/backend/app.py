@@ -27,6 +27,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from controllers.document_controller import document_bp
 from controllers.pdf_validation_controller import pdf_bp
+from controllers.zip_upload_controller import zip_bp
 from services.session_manager import SessionManager
 from apscheduler.schedulers.background import BackgroundScheduler
 from config.runtime import get_allowed_origins, get_port, is_debug_enabled, resolve_app_path
@@ -83,6 +84,7 @@ def create_app():
 
     app.register_blueprint(document_bp)
     app.register_blueprint(pdf_bp)
+    app.register_blueprint(zip_bp)
 
     @app.route('/')
     def index():

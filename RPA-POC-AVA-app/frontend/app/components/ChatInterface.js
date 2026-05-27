@@ -140,7 +140,34 @@ export default function ChatInterface({
     }
   };
 
-  const validationStatus = validationErrors.length === 0 ? 'PASSED' : 'FAILED';
+  // Calculate validation status based on all sections
+  let validationStatus = 'PASSED';
+  
+  if (formData) {
+    // Check SF-424 status
+    const hasSF424 = formData.sf424_validation && formData.sf424_validation.extracted;
+    const sf424Failed = hasSF424 && (
+      formData.sf424_validation.nofo_mismatch ||
+      (formData.sf424_validation.validation_results && !formData.sf424_validation.validation_results.valid)
+    );
+    
+    // Check PPOP status
+    const hasPPOP = formData.ppop_validation && formData.ppop_validation.extracted;
+    const ppopFailed = hasPPOP && (
+      formData.ppop_validation.validation_results && !formData.ppop_validation.validation_results.valid
+    );
+    
+    // Check Page Count status
+    const hasPageCount = formData.attachments && formData.attachments.total_files > 0;
+    const pageCountFailed = hasPageCount && formData.attachments.page_count_ok === false;
+    
+    // If any section failed, overall status is FAILED
+    if (sf424Failed || ppopFailed || pageCountFailed || validationErrors.length > 0) {
+      validationStatus = 'FAILED';
+    }
+  } else if (validationErrors.length > 0) {
+    validationStatus = 'FAILED';
+  }
 
   return (
     <Box sx={{ 
@@ -227,7 +254,7 @@ export default function ChatInterface({
                 {msg.role === 'user' && index === 1 && (
                   <Box sx={{ mb: 1, p: 1, backgroundColor: '#c8e6c9', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                      [PDF]
+                      [{formType === 'ZIP' ? 'ZIP' : 'PDF'}]
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#2e7d32' }}>
                       {fileName}
@@ -237,7 +264,7 @@ export default function ChatInterface({
                 
                 <Typography 
                   variant="body1"
-                  dangerouslySetInnerHTML={{ __html: msg.content }}
+                  dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
                   sx={{
                     '& strong': { fontWeight: 700 },
                     '& br': { display: 'block', content: '""', marginTop: '0.5em' },
@@ -286,7 +313,7 @@ export default function ChatInterface({
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                [PDF]
+                [{formType === 'ZIP' ? 'ZIP' : 'PDF'}]
               </Typography>
               <Typography variant="body2" sx={{ color: '#2e7d32' }}>
                 {fileName}

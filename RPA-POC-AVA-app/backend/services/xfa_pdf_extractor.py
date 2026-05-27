@@ -47,12 +47,24 @@ class XFAPdfExtractor:
             self._extract_pdf_metadata(pdf, result)
             
             if self._try_extract_xfa_data(pdf, result):
-                print(f"XFA extraction successful: {len(result['raw_fields'])} fields")
+                print(f"✓ XFA extraction successful: {len(result['raw_fields'])} fields")
+                print(f"  Field names: {list(result['raw_fields'].keys())}")
             elif self._try_extract_acroform_data(pdf, result):
-                print(f"AcroForm extraction successful: {len(result['raw_fields'])} fields")
+                print(f"✓ AcroForm extraction successful: {len(result['raw_fields'])} fields")
+                print(f"  Field names: {list(result['raw_fields'].keys())}")
             else:
-                print("Falling back to text extraction")
-                self._extract_text_content(pdf, result)
+                print("⚠ No XFA/AcroForm data found, falling back to flattened PDF text extraction")
+                pdf.close()
+                # Use FlattenedPdfExtractor for non-XFA PDFs
+                from services.flattened_pdf_extractor import FlattenedPdfExtractor
+                flat_extractor = FlattenedPdfExtractor()
+                flat_result = flat_extractor.extract_form_fields(pdf_path)
+                result['raw_fields'] = flat_result['raw_fields']
+                result['fields'] = flat_result['fields']
+                result['metadata'].update(flat_result['metadata'])
+                print(f"✓ Flattened extraction: {len(result['raw_fields'])} fields")
+                print(f"  Field names: {list(result['raw_fields'].keys())}")
+                return result
             
             self._detect_form_type(result)
             

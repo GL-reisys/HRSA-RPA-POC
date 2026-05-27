@@ -14,6 +14,27 @@ class FormMapper:
         ""  # No prefix fallback
     ]
     
+    # Field name mappings from flattened PDF (snake_case) to XFA (PascalCase)
+    FIELD_NAME_ALIASES = {
+        'application_type': 'ApplicationType',
+        'funding_opportunity_number': 'FundingOpportunityNumber',
+        'applicant_name': 'OrganizationName',
+        'organization_name': 'OrganizationName',
+        'primary_site_city': 'Applicant_City',
+        'primary_site_state': 'Applicant_State',
+        'congressional_district': 'CongressionalDistrictProgramProject',
+        'submission_type': 'SubmissionType',
+        'samuei': 'SAMUEI',
+        'uei': 'SAMUEI',
+        'ein': 'EmployerTaxpayerIdentificationNumber',
+        'project_title': 'ProjectTitle',
+        'contact_email': 'Email',
+        'contact_phone': 'PhoneNumber',
+        'auth_rep_first_name': 'AuthorizedRepresentative_FirstName',
+        'auth_rep_last_name': 'AuthorizedRepresentative_LastName',
+        'auth_rep_email': 'AuthorizedRepresentativeEmail'
+    }
+    
     def map_to_sf424(self, xfa_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Map XFA form data to SF424 structure.
@@ -122,6 +143,19 @@ class FormMapper:
             value = fields.get(full_field_name) or raw_fields.get(full_field_name)
             if value is not None:
                 return str(value)
+        
+        # Try snake_case alias (for flattened PDFs)
+        snake_case_name = ''.join(['_'+c.lower() if c.isupper() else c for c in field_name]).lstrip('_')
+        value = fields.get(snake_case_name) or raw_fields.get(snake_case_name)
+        if value is not None:
+            return str(value)
+        
+        # Try reverse lookup from aliases
+        for alias, target in self.FIELD_NAME_ALIASES.items():
+            if target == field_name:
+                value = fields.get(alias) or raw_fields.get(alias)
+                if value is not None:
+                    return str(value)
         
         # Try fuzzy match as fallback
         for key in fields.keys():
