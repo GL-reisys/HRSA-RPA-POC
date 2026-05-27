@@ -32,7 +32,7 @@ class ValidationErrorFactory:
         )
 
     @staticmethod
-    def required_field(field_name: str, field_code: str, page: int = 1, field_location: str = None) -> ValidationError:
+    def required_field(field_name: str, field_code: str, page: int = 1, field_location: str = None, image_path: str = None) -> ValidationError:
         guidance = f"• Ensure that the {field_name} field is filled out in the SF-424 form before submission.<br>• Double-check that all required fields are completed."
         return ValidationErrorFactory._create(
             f"{field_name} is required.",
@@ -40,7 +40,21 @@ class ValidationErrorFactory:
             field_name=field_name,
             page_number=page,
             field_location=field_location,
-            guidance=guidance
+            guidance=guidance,
+            image_path=image_path
+        )
+    
+    @staticmethod
+    def ppop_required_field(field_name: str, field_code: str) -> ValidationError:
+        guidance = f"• Ensure that the {field_name} field is filled out in the PPOP form before submission.<br>• Double-check that all required fields are completed."
+        return ValidationErrorFactory._create(
+            f"{field_name} is required.",
+            f"Required field missing: {field_name} ({field_code}).",
+            field_name=field_name,
+            page_number=None,
+            field_location=None,
+            guidance=guidance,
+            image_path=None
         )
 
     @staticmethod
@@ -106,7 +120,7 @@ class ValidationErrorFactory:
             f"Funding Opportunity Number not found in system: {fon}. This funding opportunity number does not exist or is not currently accepting applications.",
             field_name="Funding Opportunity Number",
             page_number=1,
-            field_location="Page 1, Field 4",
+            field_location="Page 1, Field 12",
             current_value=fon,
             guidance=guidance,
             image_path="/static/images/fields/funding_opportunity_field.png"

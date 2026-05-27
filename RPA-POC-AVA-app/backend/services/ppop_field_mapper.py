@@ -53,6 +53,14 @@ class PPOPFieldMapper:
         """
         raw_fields = xfa_data.get('raw_fields', {})
         
+        # DEBUG: Log all field names
+        print(f"DEBUG PPOP MAPPER: Received {len(raw_fields)} fields")
+        print(f"DEBUG PPOP MAPPER: All field names: {list(raw_fields.keys())}")
+        if raw_fields:
+            print(f"DEBUG PPOP MAPPER: Sample field values:")
+            for key in list(raw_fields.keys())[:10]:
+                print(f"  - {key}: {raw_fields[key]}")
+        
         # Extract Primary Site
         primary_site = self._extract_site_address(raw_fields, 'PrimarySite')
         
@@ -68,25 +76,47 @@ class PPOPFieldMapper:
         """
         Extract address data for a specific site (Primary or Other).
         
-        Field pattern: datasets_data_GrantApplicationWrapper_GrantApplication_Forms_PerformanceSite_4_0_{site_type}_*
+        Handles both:
+        - XFA format: datasets_data_GrantApplicationWrapper_GrantApplication_Forms_PerformanceSite_4_0_{site_type}_*
+        - Flattened format with prefix: {site_type_lower}_{field}
+        - Flattened format without prefix: just {field} (e.g., 'city', 'state')
         """
-        # Find fields matching the site type
+        # Find fields matching the site type (case-insensitive for flattened PDFs)
+        site_type_lower = site_type.lower().replace('site', '_site')  # "PrimarySite" -> "primary_site"
         site_fields = {
             key: value for key, value in raw_fields.items()
-            if site_type in key
+            if site_type in key or site_type_lower in key.lower()
         }
         
+        print(f"DEBUG: Extracting {site_type} address from {len(site_fields)} site-specific fields")
+        print(f"DEBUG: Site-specific fields: {list(site_fields.keys())}")
+        
+        # If no site-specific fields found, use all fields (for simple flattened PDFs)
+        if not site_fields:
+            print(f"DEBUG: No site-specific fields found, using all {len(raw_fields)} fields")
+            site_fields = raw_fields
+        
         # Extract organization info
-        org_name = self._find_field_value(site_fields, 'OrganizationName')
-        uei = self._find_field_value(site_fields, 'SAMUEI')
+        # XFA: 'OrganizationName', Flattened: 'organization_name' or 'org_name'
+        org_name = self._find_field_value(site_fields, ['OrganizationName', 'organization_name', 'org_name'])
+        uei = self._find_field_value(site_fields, ['SAMUEI', 'uei', 'samuei'])
         
         # Extract address fields
-        street = self._find_field_value(site_fields, 'Address_Street1')
-        city = self._find_field_value(site_fields, 'Address_City')
-        state_raw = self._find_field_value(site_fields, 'Address_State')
-        zip_raw = self._find_field_value(site_fields, 'Address_ZipPostalCode')
-        country = self._find_field_value(site_fields, 'Address_Country')
-        district = self._find_field_value(site_fields, 'CongressionalDistrictProgramProject')
+        # XFA: 'Address_Street1', Flattened: 'Street1', 'street', 'street1', 'address_street1'
+        street = self._find_field_value(site_fields, ['Address_Street1', 'Street1', 'street', 'street1', 'address_street1', 'address_street'])
+        city = self._find_field_value(site_fields, ['Address_City', 'City', 'city', 'address_city'])
+        state_raw = self._find_field_value(site_fields, ['Address_State', 'State', 'state', 'address_state'])
+        # Handle 'ZIP / Postal Code' (with spaces and slash), 'ZIP/PostalCode', 'ZIPPostalCode', etc.
+        zip_raw = self._find_field_value(site_fields, ['Address_ZipPostalCode', 'ZIP / Postal Code', 'ZIP/Postal Code', 'ZIPPostalCode', 'ZIP/PostalCode', 'zip', 'zip_code', 'zippostalcode', 'postal_code', 'zipcode', 'postalcode'])
+        country = self._find_field_value(site_fields, ['Address_Country', 'Country', 'country', 'address_country'])
+        district = self._find_field_value(site_fields, ['CongressionalDistrictProgramProject', 'congressional_district', 'district'])
+        
+        print(f"DEBUG: Extracted fields for {site_type}:")
+        print(f"  - street: {street}")
+        print(f"  - city: {city}")
+        print(f"  - state_raw: {state_raw}")
+        print(f"  - zip_raw: {zip_raw}")
+        print(f"  - district: {district}")
         
         # Parse state (format: "VA: Virginia" -> "VA")
         state_code = self._parse_state_code(state_raw)
@@ -109,11 +139,28 @@ class PPOPFieldMapper:
             congressional_district=district
         )
     
-    def _find_field_value(self, fields: Dict[str, str], field_suffix: str) -> Optional[str]:
-        """Find field value by suffix (e.g., 'Address_City')"""
-        for key, value in fields.items():
-            if field_suffix in key:
-                return value.strip() if value else None
+    def _find_field_value(self, fields: Dict[str, str], field_suffixes) -> Optional[str]:
+        """
+        Find field value by suffix(es).
+        Accepts either a single string or list of strings to search for.
+        
+        Args:
+            fields: Dictionary of field names to values
+            field_suffixes: Single string or list of strings to search for in field names
+            
+        Returns:
+            First matching non-empty value, or None
+        """
+        # Convert to list if single string provided
+        if isinstance(field_suffixes, str):
+            field_suffixes = [field_suffixes]
+        
+        # Try each suffix pattern
+        for suffix in field_suffixes:
+            for key, value in fields.items():
+                # Case-insensitive search for field name
+                if suffix.lower() in key.lower():
+                    return value.strip() if value else None
         return None
     
     def _parse_state_code(self, state_raw: Optional[str]) -> Optional[str]:

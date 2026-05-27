@@ -98,6 +98,7 @@ def upload_zip():
             
             response = {
                 'file_id': file_id,
+                'file_name': file.filename,
                 'original_filename': file.filename,
                 'status': 'success' if result['success'] else 'failed',
                 'sf424_validation': sf424_with_fields,

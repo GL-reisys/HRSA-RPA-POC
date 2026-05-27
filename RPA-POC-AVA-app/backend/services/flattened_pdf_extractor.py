@@ -99,6 +99,11 @@ class FlattenedPdfExtractor:
         """Extract SF-424 specific fields with comprehensive parsing"""
         fields = {}
         
+        # Debug: Show section around Auth Rep fields (field 21)
+        auth_rep_section = re.search(r'(21[a-z].*?(?:22|$))', full_text, re.DOTALL | re.IGNORECASE)
+        if auth_rep_section:
+            print(f"DEBUG: Auth Rep section from PDF:\n{auth_rep_section.group(1)[:500]}")
+        
         # Extract UEI (multiple patterns)
         uei_patterns = [
             r'UEI[:\s]+([A-Z0-9]{12})',
@@ -146,6 +151,21 @@ class FlattenedPdfExtractor:
         fon_match = re.search(r'(HRSA-\d{2}-\d{3,4})', full_text)
         if fon_match:
             fields['funding_opportunity_number'] = fon_match.group(1)
+        
+        # Extract Grant Number / Federal Award Identifier (field 5b)
+        grant_patterns = [
+            r'5b[.\s]*Federal\s+Award\s+Identifier:\s*([A-Z0-9]+)',
+            r'Federal\s+Award\s+Identifier:\s*([A-Z0-9]+)',
+            r'5b[.\s]*(?:Federal Award Identifier)?:\s*([A-Z0-9]+)',
+        ]
+        for pattern in grant_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                grant_num = match.group(1).strip()
+                if grant_num and len(grant_num) > 5:
+                    fields['federal_award_identifier'] = grant_num
+                    print(f"DEBUG: Found Grant Number: {grant_num}")
+                    break
         
         # Extract Application Type
         for i, line in enumerate(lines):
@@ -198,16 +218,48 @@ class FlattenedPdfExtractor:
                     break
         
         # Extract Authorized Representative Name
-        auth_rep_patterns = [
-            r'Authorized Representative[:\s\n]+([A-Za-z]+)\s+([A-Za-z]+)',
-            r'First Name[:\s]+([A-Za-z]+).*Last Name[:\s]+([A-Za-z]+)',
+        # Pattern matches: "Authorized Representative: Prefix: * First Name: Jane Middle Name: * Last Name: Doe"
+        auth_rep_section = re.search(r'Authorized\s+Representative:.*?Prefix:.*?\*\s*First\s+Name:\s*([A-Za-z\'-]+).*?Middle\s+Name:.*?\*\s*Last\s+Name:\s*([A-Za-z\'-]+)', full_text, re.DOTALL | re.IGNORECASE)
+        if auth_rep_section:
+            first_name = auth_rep_section.group(1).strip()
+            last_name = auth_rep_section.group(2).strip()
+            if first_name and len(first_name) > 1:
+                fields['authorized_representative_first_name'] = first_name
+                print(f"DEBUG: Found Auth Rep First Name: {first_name}")
+            if last_name and len(last_name) > 1:
+                fields['authorized_representative_last_name'] = last_name
+                print(f"DEBUG: Found Auth Rep Last Name: {last_name}")
+        
+        # Fallback: Try simpler patterns if main pattern failed
+        if 'authorized_representative_first_name' not in fields:
+            first_fallback = re.search(r'\*\s*First\s+Name:\s*([A-Za-z\'-]+)(?:\s+Middle|\s+\*\s*Last)', full_text, re.IGNORECASE)
+            if first_fallback:
+                name = first_fallback.group(1).strip()
+                if name and name.lower() not in ['name', 'first', 'john', 'jane']:
+                    fields['authorized_representative_first_name'] = name
+                    print(f"DEBUG: Found Auth Rep First Name (fallback): {name}")
+        
+        if 'authorized_representative_last_name' not in fields:
+            last_fallback = re.search(r'Middle\s+Name:.*?\*\s*Last\s+Name:\s*([A-Za-z\'-]+)', full_text, re.DOTALL | re.IGNORECASE)
+            if last_fallback:
+                name = last_fallback.group(1).strip()
+                if name and name.lower() not in ['name', 'last', 'smith', 'doe']:
+                    fields['authorized_representative_last_name'] = name
+                    print(f"DEBUG: Found Auth Rep Last Name (fallback): {name}")
+        
+        # Extract Authorized Representative Email - field 21d
+        auth_email_patterns = [
+            r'21d[.\s]*(?:E-?Mail)?[:\s]+([\w\.-]+@[\w\.-]+\.\w+)',
+            r'(?:AOR|Authorized Representative).*?(?:E-?Mail|Email Address)[:\s]+([\w\.-]+@[\w\.-]+\.\w+)',
         ]
-        for pattern in auth_rep_patterns:
+        for pattern in auth_email_patterns:
             match = re.search(pattern, full_text, re.DOTALL | re.IGNORECASE)
             if match:
-                fields['authorized_representative_first_name'] = match.group(1).strip()
-                fields['authorized_representative_last_name'] = match.group(2).strip()
-                break
+                email = match.group(1).strip()
+                if '@' in email:
+                    fields['authorized_representative_email'] = email
+                    print(f"DEBUG: Found Auth Rep Email: {email}")
+                    break
         
         # Extract City, State, Zip
         city_match = re.search(r'City[:\s]+([A-Za-z\s]+)', full_text)
@@ -240,6 +292,71 @@ class FlattenedPdfExtractor:
         """Extract PPOP (Performance Site Location) specific fields"""
         fields = {}
         
+        print("DEBUG PPOP EXTRACTION: Starting PPOP field extraction")
+        print(f"DEBUG PPOP EXTRACTION: Full text length: {len(full_text)} chars")
+        
+        # Extract Primary Site Street Address
+        # Look for patterns like "Street1:", "Street 1:", "Address:", etc.
+        street_patterns = [
+            r'Street\s*1?[:\s]+([^\n]+)',
+            r'Address[:\s]+([^\n]+)',
+            r'Street Address[:\s]+([^\n]+)',
+        ]
+        for pattern in street_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                street = match.group(1).strip()
+                # Filter out labels and empty values
+                if street and street not in ['', '-', '*', 'N/A', 'Street2', 'City']:
+                    fields['Street1'] = street
+                    print(f"DEBUG PPOP EXTRACTION: Found Street1: {street}")
+                    break
+        
+        # Extract Primary Site City
+        city_patterns = [
+            r'City[:\s]+([A-Za-z\s]+?)(?:\n|County|State)',
+            r'City[:\s]+([A-Za-z\s]+)',
+        ]
+        for pattern in city_patterns:
+            city_match = re.search(pattern, full_text)
+            if city_match:
+                city = city_match.group(1).strip()
+                if city and city not in ['', '-', '*', 'N/A', 'State']:
+                    fields['City'] = city
+                    print(f"DEBUG PPOP EXTRACTION: Found City: {city}")
+                    break
+        
+        # Extract Primary Site State
+        state_patterns = [
+            r'State[:\s]+([A-Z]{2})',
+            r'State[:\s]+([A-Za-z\s]+?)(?:\n|ZIP)',
+        ]
+        for pattern in state_patterns:
+            state_match = re.search(pattern, full_text)
+            if state_match:
+                state = state_match.group(1).strip()
+                if len(state) == 2:  # State code
+                    fields['State'] = state
+                    print(f"DEBUG PPOP EXTRACTION: Found State: {state}")
+                    break
+        
+        # Extract Primary Site ZIP Code
+        # Look for patterns like "ZIP / Postal Code:", "ZIP:", "Postal Code:", etc.
+        zip_patterns = [
+            r'ZIP\s*/\s*Postal\s+Code[:\s]+(\d{5}(?:-\d{4})?)',
+            r'ZIP[:\s]+(\d{5}(?:-\d{4})?)',
+            r'Postal\s+Code[:\s]+(\d{5}(?:-\d{4})?)',
+            r'Zip\s*Code[:\s]+(\d{5}(?:-\d{4})?)',
+        ]
+        for pattern in zip_patterns:
+            zip_match = re.search(pattern, full_text, re.IGNORECASE)
+            if zip_match:
+                zip_code = zip_match.group(1).strip()
+                if zip_code:
+                    fields['ZIP / Postal Code'] = zip_code
+                    print(f"DEBUG PPOP EXTRACTION: Found ZIP: {zip_code}")
+                    break
+        
         # Extract Primary Site Congressional District
         for line in lines:
             if 'Congressional District' in line:
@@ -247,17 +364,7 @@ class FlattenedPdfExtractor:
                 district_match = re.search(r'District[:\s]+([A-Z]{2}-\d{1,2}|\d{1,2})', line)
                 if district_match:
                     fields['congressional_district'] = district_match.group(1)
+                    print(f"DEBUG PPOP EXTRACTION: Found District: {district_match.group(1)}")
         
-        # Extract Primary Site Location (City, State)
-        city_pattern = r'City[:\s]+([A-Za-z\s]+)'
-        state_pattern = r'State[:\s]+([A-Z]{2})'
-        
-        city_match = re.search(city_pattern, full_text)
-        state_match = re.search(state_pattern, full_text)
-        
-        if city_match:
-            fields['primary_site_city'] = city_match.group(1).strip()
-        if state_match:
-            fields['primary_site_state'] = state_match.group(1).strip()
-        
+        print(f"DEBUG PPOP EXTRACTION: Extracted {len(fields)} fields: {list(fields.keys())}")
         return fields

@@ -88,25 +88,25 @@ class PPOPValidator:
         
         # Check required fields
         if not address.street:
-            errors.append(ValidationErrorFactory.required_field(
+            errors.append(ValidationErrorFactory.ppop_required_field(
                 f"{address.site_type} Street Address", 
                 f"PPOP_{address.site_type.replace(' ', '_').upper()}_STREET"
             ))
         
         if not address.city:
-            errors.append(ValidationErrorFactory.required_field(
+            errors.append(ValidationErrorFactory.ppop_required_field(
                 f"{address.site_type} City", 
                 f"PPOP_{address.site_type.replace(' ', '_').upper()}_CITY"
             ))
         
         if not address.state_code:
-            errors.append(ValidationErrorFactory.required_field(
+            errors.append(ValidationErrorFactory.ppop_required_field(
                 f"{address.site_type} State", 
                 f"PPOP_{address.site_type.replace(' ', '_').upper()}_STATE"
             ))
         
         if not address.zip5:
-            errors.append(ValidationErrorFactory.required_field(
+            errors.append(ValidationErrorFactory.ppop_required_field(
                 f"{address.site_type} ZIP Code", 
                 f"PPOP_{address.site_type.replace(' ', '_').upper()}_ZIP"
             ))

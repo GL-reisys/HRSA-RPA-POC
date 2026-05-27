@@ -76,8 +76,8 @@ class ComprehensiveZipProcessorV2:
         filename_lower = filename.lower()
         
         # First check for common form patterns regardless of database
-        # SF-424 variations: SF424_4, SF-424, sf424
-        if 'sf424_4' in filename_lower or 'sf-424_4' in filename_lower or 'sf424a' in filename_lower or 'sf-424a' in filename_lower:
+        # SF-424 variations: SF424_4, SF-424, sf424 (but NOT SF-424A which is a different form)
+        if ('sf424_4' in filename_lower or 'sf-424_4' in filename_lower) and 'sf424a' not in filename_lower and 'sf-424a' not in filename_lower:
             return 'SF-424'
         
         # PPOP/PerformanceSite variations: PerformanceSite_4, PPOP
@@ -156,16 +156,22 @@ class ComprehensiveZipProcessorV2:
                 package_forms = self.db_service.get_package_forms(nofo)
                 
                 if max_attachment_pages is None:
+                    # NOFO not in database - continue processing but can't validate page count
                     result['errors'].append(f'Funding opportunity {nofo} not found in database')
-                    return result
-                
-                result['attachments']['max_attachment_page_count'] = max_attachment_pages
-                print(f"Max attachment pages: {max_attachment_pages}")
-                print(f"Expected forms: {package_forms}")
+                    max_attachment_pages = None
+                    package_forms = []  # Will use default form detection patterns
+                    print(f"NOFO {nofo} not found - using default form patterns")
+                else:
+                    result['attachments']['max_attachment_page_count'] = max_attachment_pages
+                    print(f"Max attachment pages: {max_attachment_pages}")
+                    print(f"Expected forms: {package_forms}")
                 
             except Exception as e:
+                # Database query failed - continue with default patterns
                 result['errors'].append(f'Database query failed: {str(e)}')
-                return result
+                max_attachment_pages = None
+                package_forms = []
+                print(f"Database error - using default form patterns")
             
             # 3. Validate zip file
             validation = self._validate_zip(zip_path)
@@ -184,21 +190,29 @@ class ComprehensiveZipProcessorV2:
             # 5. Classify files as forms or attachments
             sf424_file = None
             ppop_file = None
-            attachment_files = []
-            form_files = []
+            page_count_files = []  # Files to count towards page limit
+            excluded_files = []  # SF-424, PPOP, GrantApplication, manifest
             
             for file_path in extracted_files:
                 filename = os.path.basename(file_path)
                 file_ext = os.path.splitext(filename)[1].lower()
+                filename_lower = filename.lower()
                 
-                # Skip non-accepted file formats and special files
+                # Skip non-accepted file formats
                 if file_ext not in self.ACCEPTED_EXTENSIONS:
                     print(f"Skipping unsupported file format: {filename}")
                     continue
                 
-                # Skip manifest and other system files
-                if filename.lower() in ['manifest.txt', 'manifest.xml', 'readme.txt']:
+                # Skip manifest and system files (excluded from page count)
+                if filename_lower in ['manifest.txt', 'manifest.xml', 'readme.txt']:
                     print(f"Skipping system file: {filename}")
+                    excluded_files.append({'path': file_path, 'name': filename, 'reason': 'System file'})
+                    continue
+                
+                # Skip GrantApplication files (excluded from page count)
+                if 'grantapplication' in filename_lower:
+                    print(f"Excluding GrantApplication file: {filename}")
+                    excluded_files.append({'path': file_path, 'name': filename, 'reason': 'GrantApplication'})
                     continue
                 
                 # Check if this is a known form by pattern
@@ -208,71 +222,72 @@ class ComprehensiveZipProcessorV2:
                     # This is a form - identify which one
                     if matched_form in ['SF-424', 'sf-424', 'SF424']:
                         sf424_file = file_path
-                        form_files.append({'path': file_path, 'form_name': 'SF-424'})
-                        print(f"Identified SF-424: {filename}")
+                        excluded_files.append({'path': file_path, 'name': filename, 'reason': 'SF-424 form'})
+                        print(f"Identified SF-424 (excluded from page count): {filename}")
                     elif matched_form in ['PerformanceSite', 'PPOP']:
                         ppop_file = file_path
-                        form_files.append({'path': file_path, 'form_name': 'PPOP'})
-                        print(f"Identified PPOP: {filename}")
+                        excluded_files.append({'path': file_path, 'name': filename, 'reason': 'PPOP form'})
+                        print(f"Identified PPOP (excluded from page count): {filename}")
                     else:
-                        form_files.append({'path': file_path, 'form_name': matched_form})
-                        print(f"Identified form {matched_form}: {filename}")
-                elif self.is_attachment_file(filename):
-                    # File has "Attachment" in name - it's an attachment
-                    attachment_files.append(file_path)
-                    print(f"Identified attachment by name: {filename}")
+                        # Other forms count towards page limit
+                        page_count_files.append({'path': file_path, 'name': filename, 'type': 'form', 'form_name': matched_form})
+                        print(f"Identified form {matched_form} (counted): {filename}")
                 else:
-                    # Default: treat as attachment if not a form
-                    attachment_files.append(file_path)
-                    print(f"Classified as attachment (default): {filename}")
+                    # All other files count towards page limit
+                    page_count_files.append({'path': file_path, 'name': filename, 'type': 'attachment'})
+                    print(f"Identified file (counted): {filename}")
             
-            print(f"\nSummary - Forms identified: {len(form_files)}")
-            print(f"Summary - Attachments identified: {len(attachment_files)}")
+            print(f"\nSummary - Files counted towards page limit: {len(page_count_files)}")
+            print(f"Summary - Files excluded from page count: {len(excluded_files)}")
             
             # 6. Process SF-424 if present
             if sf424_file:
-                result['sf424_validation'] = self._process_sf424(sf424_file)
+                result['sf424_validation'] = self._process_sf424(sf424_file, nofo)
             
             # 7. Process PPOP if present
             if ppop_file:
                 result['ppop_validation'] = self._process_ppop(ppop_file)
             
-            # 8. Count pages - forms vs attachments
+            # 8. Count pages - NEW LOGIC: Count everything except SF-424, PPOP, GrantApplication, manifest
             all_files_info = []
-            total_form_pages = 0
-            total_attachment_pages = 0
+            excluded_files_info = []
+            total_counted_pages = 0
             
-            # Count form pages (for information only - not validated)
-            for form_info in form_files:
-                file_info = self._count_file_pages(form_info['path'])
-                file_info['file_type'] = 'form'
-                file_info['form_name'] = form_info['form_name']
-                all_files_info.append(file_info)
-                total_form_pages += file_info['pages']
+            # Count pages for files that count towards limit
+            for file_info in page_count_files:
+                page_info = self._count_file_pages(file_info['path'])
+                page_info['file_type'] = file_info.get('type', 'attachment')
+                if 'form_name' in file_info:
+                    page_info['form_name'] = file_info['form_name']
+                all_files_info.append(page_info)
+                total_counted_pages += page_info['pages']
             
-            # Count attachment pages (these are validated against limit)
-            for att_file in attachment_files:
-                file_info = self._count_file_pages(att_file)
-                file_info['file_type'] = 'attachment'
-                all_files_info.append(file_info)
-                total_attachment_pages += file_info['pages']
+            # Count pages for excluded files (for information only)
+            for file_info in excluded_files:
+                page_info = self._count_file_pages(file_info['path'])
+                page_info['file_type'] = 'excluded'
+                page_info['exclusion_reason'] = file_info['reason']
+                excluded_files_info.append(page_info)
             
             result['attachments']['files'] = all_files_info
+            result['attachments']['excluded_files'] = excluded_files_info
             result['attachments']['total_files'] = len(all_files_info)
-            result['attachments']['total_pages'] = total_form_pages + total_attachment_pages
-            result['attachments']['form_pages'] = total_form_pages
-            result['attachments']['attachment_pages'] = total_attachment_pages
+            result['attachments']['total_pages'] = total_counted_pages
+            result['attachments']['excluded_file_count'] = len(excluded_files_info)
             
-            # 9. Validate attachment page count (forms don't count)
-            if total_attachment_pages <= max_attachment_pages:
+            # 9. Validate page count against limit
+            if max_attachment_pages and total_counted_pages <= max_attachment_pages:
                 result['attachments']['page_count_ok'] = True
-            else:
+            elif max_attachment_pages:
                 result['attachments']['page_count_ok'] = False
+            else:
+                # No limit available from database
+                result['attachments']['page_count_ok'] = None
             
-            print(f"Total pages: {result['attachments']['total_pages']}")
-            print(f"Form pages (excluded): {total_form_pages}")
-            print(f"Attachment pages (validated): {total_attachment_pages}")
+            print(f"Total pages counted: {total_counted_pages}")
+            print(f"Max allowed pages: {max_attachment_pages}")
             print(f"Page count OK: {result['attachments']['page_count_ok']}")
+            print(f"Excluded files: {len(excluded_files_info)}")
             
             result['success'] = True
             
@@ -382,7 +397,7 @@ class ComprehensiveZipProcessorV2:
         
         return extracted_files
     
-    def _process_sf424(self, pdf_path: str) -> Dict[str, Any]:
+    def _process_sf424(self, pdf_path: str, expected_nofo: str = None) -> Dict[str, Any]:
         """Extract and validate SF-424 form"""
         result = {
             'form_type': 'SF-424',
@@ -401,17 +416,60 @@ class ComprehensiveZipProcessorV2:
             print(f"DEBUG: XFA extraction returned {len(xfa_data.get('fields', {}))} fields")
             
             if xfa_data.get('fields'):
-                print(f"DEBUG: First 5 field names: {list(xfa_data['fields'].keys())[:5]}")
+                field_names = list(xfa_data['fields'].keys())
+                print(f"DEBUG: First 10 field names: {field_names[:10]}")
+                print(f"DEBUG: ALL SF-424 FIELD NAMES ({len(field_names)} total):")
+                for fname in field_names[:50]:  # Show first 50
+                    print(f"  - {fname}: {str(xfa_data['fields'][fname])[:100]}")
             
             form_type = self.form_detector.detect_form_type(xfa_data)
             print(f"DEBUG: Form type detected: {form_type}")
             
             if form_type == FormType.SF424:
-                # Map XFA fields to standard SF-424 fields
-                mapped_fields = self.form_mapper.map_to_sf424(xfa_data)
+                # Check if fields are already in standard format (from flattened extraction)
+                # Flattened extraction returns fields like 'authorized_representative_first_name'
+                # XFA extraction returns fields like 'AuthorizedRepresentative_FirstName'
+                is_already_mapped = 'authorized_representative_email' in xfa_data.get('fields', {})
+                
+                if is_already_mapped:
+                    # Fields are already in correct format from flattened extraction
+                    mapped_fields = xfa_data['fields']
+                    print(f"DEBUG: Using flattened extraction fields directly (already in correct format)")
+                    result['extraction_method'] = 'Flattened'
+                else:
+                    # Map XFA fields to standard SF-424 fields
+                    mapped_fields = self.form_mapper.map_to_sf424(xfa_data)
+                    result['extraction_method'] = 'XFA'
+                
+                print(f"DEBUG: Mapped {len(mapped_fields)} SF-424 fields")
+                print(f"DEBUG: Auth Rep fields after mapping:")
+                print(f"  - authorized_representative_first_name: {mapped_fields.get('authorized_representative_first_name')}")
+                print(f"  - authorized_representative_last_name: {mapped_fields.get('authorized_representative_last_name')}")
+                print(f"  - authorized_representative_email: {mapped_fields.get('authorized_representative_email')}")
                 result['fields'] = mapped_fields
                 result['extracted'] = True
-                result['extraction_method'] = 'XFA'
+                
+                # CRITICAL: Compare NOFO from ZIP filename with NOFO in SF-424
+                if expected_nofo:
+                    sf424_nofo = mapped_fields.get('funding_opportunity_number', '').strip().upper()
+                    expected_nofo_clean = expected_nofo.strip().upper()
+                    
+                    print(f"DEBUG: NOFO Comparison - ZIP: {expected_nofo_clean}, SF-424: {sf424_nofo}")
+                    
+                    if sf424_nofo != expected_nofo_clean:
+                        result['nofo_mismatch'] = True
+                        result['nofo_error'] = {
+                            'user_message': f'Funding Opportunity Number mismatch: ZIP filename has {expected_nofo_clean} but SF-424 form has {sf424_nofo}',
+                            'expected': expected_nofo_clean,
+                            'actual': sf424_nofo
+                        }
+                        result['errors'].append(result['nofo_error']['user_message'])
+                        print(f"ERROR: NOFO mismatch - skipping validations")
+                        # Return immediately - don't run validations
+                        return result
+                    else:
+                        result['nofo_match'] = True
+                        print(f"SUCCESS: NOFO match verified")
                 
                 # Validate SF-424
                 if self.sf424_validator:
@@ -467,25 +525,54 @@ class ComprehensiveZipProcessorV2:
             print(f"DEBUG: XFA extraction returned {len(xfa_data.get('fields', {}))} fields")
             
             if xfa_data.get('fields'):
-                print(f"DEBUG: First 5 field names: {list(xfa_data['fields'].keys())[:5]}")
+                print(f"DEBUG: Field names: {list(xfa_data['fields'].keys())}")
             
-            form_type = self.form_detector.detect_form_type(xfa_data)
-            print(f"DEBUG: Form type detected: {form_type}")
+            # Since we already identified this file as PPOP from the filename (PerformanceSite_4_0),
+            # we should trust that and extract fields regardless of form type detection
+            # (Form type detection fails on flattened PDFs with simple field names)
             
-            if form_type == FormType.PERFORMANCE_SITE:
+            if xfa_data.get('fields') and len(xfa_data['fields']) > 0:
                 result['fields'] = xfa_data['fields']
                 result['extracted'] = True
-                result['extraction_method'] = 'XFA'
+                result['extraction_method'] = xfa_data.get('metadata', {}).get('extraction_method', 'XFA')
+                print(f"✓ PPOP extraction successful: {len(result['fields'])} fields")
                 
                 # Validate PPOP if validator available
                 if self.ppop_validator:
                     try:
+                        from services.ppop_field_mapper import PPOPFieldMapper
+                        
+                        # Map fields to PPOPFormData
+                        mapper = PPOPFieldMapper()
+                        # xfa_data has 'fields' dict but mapper expects 'raw_fields'
+                        xfa_data_for_mapper = {'raw_fields': xfa_data['fields']}
+                        ppop_data = mapper.map_to_ppop(xfa_data_for_mapper)
+                        
+                        # Run validation
+                        validation_errors = self.ppop_validator.validate_ppop_form(ppop_data)
+                        
                         result['validated'] = True
-                        result['validation_results'] = {
-                            'valid': True,
-                            'error_count': 0,
-                            'message': 'PPOP extracted (validation skipped for now)'
-                        }
+                        if validation_errors:
+                            result['validation_results'] = {
+                                'valid': False,
+                                'error_count': len(validation_errors),
+                                'errors': [{
+                                    'user_message': err.user_message,
+                                    'ai_context': err.ai_context,
+                                    'field_name': err.field_name,
+                                    'page_number': err.page_number,
+                                    'field_location': err.field_location,
+                                    'current_value': err.current_value,
+                                    'guidance': err.guidance,
+                                    'image_path': err.image_path
+                                } for err in validation_errors]
+                            }
+                        else:
+                            result['validation_results'] = {
+                                'valid': True,
+                                'error_count': 0,
+                                'message': 'All PPOP validations passed'
+                            }
                     except Exception as e:
                         result['errors'].append(f'PPOP validation failed: {str(e)}')
             
