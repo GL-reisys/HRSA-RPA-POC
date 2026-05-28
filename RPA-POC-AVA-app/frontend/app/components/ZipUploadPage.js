@@ -67,77 +67,81 @@ export default function ZipUploadPage({ onUploadComplete }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f8fafc',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
+      background: '#e5faff'
     }}>
+      {/* HRSA Banner */}
       <div style={{
-        background: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        maxWidth: '850px',
-        width: '100%',
-        padding: '48px'
+        background: '#005ea2',
+        padding: '16px 32px',
+        borderBottom: '4px solid #e87722'
       }}>
-        
-        {/* Header - HRSA and AVA */}
-        <div style={{ marginBottom: '32px' }}>
-          {/* HRSA Badge */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          maxWidth: '1200px',
+          margin: '0'
+        }}>
+           <img src="/logo-black-lg.png" alt="HRSA Logo" style={{ height: '50px', marginRight: '12px' }} /> 
           <div style={{
-            display: 'inline-block',
-            background: '#f1f5f9',
-            padding: '6px 16px',
-            borderRadius: '20px',
-            marginBottom: '20px'
+            fontSize: '40px',
+            fontWeight: '700',
+            color: 'white',
+            letterSpacing: '-1px',
+            marginRight: '16px'
           }}>
-            <span style={{
-              fontSize: '12px',
-              fontWeight: '600',
-              color: '#475569',
-              letterSpacing: '0.5px'
-            }}>
-              HRSA · Health Resources & Services Administration
-            </span>
+            HRSA
           </div>
-          
-          {/* AVA Logo and Title */}
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div>
             <div style={{
-              width: '48px',
-              height: '48px',
-              background: '#2563eb',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'white',
+              lineHeight: '1.2'
             }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              Health Resources & Services Administration
             </div>
-            <div>
-              <h1 style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
-                color: '#1e293b',
-                marginBottom: '2px',
-                marginTop: '0'
-              }}>
-                AVA
-              </h1>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#64748b',
-                margin: '0'
-              }}>
-                Application Validation Assistant
-              </p>
+            <div style={{
+              fontSize: '12px',
+              color: '#cbd5e1',
+              lineHeight: '1.2'
+            }}>
+              U.S. Department of Health and Human Services
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{
+        maxWidth: '900px',
+        width: '100%',
+        margin: '0 auto',
+        padding: '40px 20px'
+      }}>
+          
+          {/* Welcome Header */}
+          <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+            <h1 style={{ 
+              fontSize: '32px', 
+              fontWeight: '700', 
+              color: '#1e293b',
+              marginBottom: '8px',
+              marginTop: '0'
+            }}>
+              Welcome to Application Validation Assistant
+            </h1>
+            <div style={{ fontSize: '32px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
+              (AVA)
+            </div>
+            <p style={{
+              fontSize: '16px',
+              color: '#475569',
+              margin: '0',
+              lineHeight: '1.5'
+            }}>
+              Upload your application package and let AVA validate your forms and attachments quickly.
+            </p>
+          </div>
 
         {/* Info Box - What to Include */}
         <div style={{
@@ -153,10 +157,13 @@ export default function ZipUploadPage({ onUploadComplete }) {
             </svg>
             <div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '700', color: '#0c4a6e' }}>
-                Upload Your Application Package
+                Upload Your Application Package (ZIP)
               </h3>
-              <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#0c4a6e' }}>
-                Your ZIP package should include one or both of the following forms and all supporting documents.
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#0c4a6e', fontWeight: '700' }}>
+                * Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the funding opportunity number. Example: HRSA-26-091
+              </p>
+              <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#0c4a6e', fontWeight: '700' }}>
+                * Your application package should include one or both of the following forms and all supporting documents/attachments counted towards the page limit
               </p>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -169,13 +176,13 @@ export default function ZipUploadPage({ onUploadComplete }) {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>PPOP form</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>PerformanceSite</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents/attachments</span>
                 </div>
               </div>
             </div>
@@ -185,61 +192,107 @@ export default function ZipUploadPage({ onUploadComplete }) {
         {/* Progress Steps */}
         <div style={{
           display: 'flex',
-          justifyContent: 'space-around',
+          justifyContent: 'center',
+          alignItems: 'center',
           marginBottom: '32px',
-          paddingTop: '12px'
+          paddingTop: '12px',
+          gap: '24px'
         }}>
-          {[
-            { num: 1, label: 'Upload\nZIP file', icon: '📁', active: true },
-            { num: 2, label: 'AVA\nValidates', icon: '✅', active: uploading },
-            { num: 3, label: 'Review\nResults', icon: '📊', active: progress === 100 }
-          ].map((step, idx) => (
-            <div key={idx} style={{ 
-              flex: 1,
+          {/* Step 1 */}
+          <div style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '12px',
+              background: '#e0f2fe',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              textAlign: 'center'
+              justifyContent: 'center',
+              fontSize: '32px',
+              marginBottom: '12px'
             }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '12px',
-                background: step.active ? '#e0f2fe' : '#f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '32px',
-                marginBottom: '12px',
-                transition: 'all 0.3s ease'
-              }}>
-                {step.icon}
-              </div>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: step.active ? '#2563eb' : '#e2e8f0',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '700',
-                fontSize: '16px',
-                marginBottom: '8px'
-              }}>
-                {step.num}
-              </div>
-              <span style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: step.active ? '#1e293b' : '#94a3b8',
-                whiteSpace: 'pre-line'
-              }}>
-                {step.label}
-              </span>
+              📁
             </div>
-          ))}
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: '#2563eb',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '700',
+              fontSize: '16px',
+              marginBottom: '8px'
+            }}>
+              1
+            </div>
+            <span style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#1e293b',
+              whiteSpace: 'pre-line'
+            }}>
+              Upload ZIP file
+            </span>
+          </div>
+          
+          {/* Arrow */}
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#005ea2', marginBottom: '8px' }}>AVA Validates</div>
+            <div style={{ fontSize: '24px', color: '#64748b' }}>──────▶</div>
+          </div>
+          
+          {/* Step 3 */}
+          <div style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '12px',
+              background: progress === 100 ? '#e0f2fe' : '#f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '32px',
+              marginBottom: '12px'
+            }}>
+              📊
+            </div>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: progress === 100 ? '#2563eb' : '#e2e8f0',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '700',
+              fontSize: '16px',
+              marginBottom: '8px'
+            }}>
+              2
+            </div>
+            <span style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: progress === 100 ? '#1e293b' : '#94a3b8',
+              whiteSpace: 'pre-line'
+            }}>
+              Review & Results
+            </span>
+          </div>
         </div>
 
         {/* Upload Zone */}
@@ -275,7 +328,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                 fontWeight: '600',
                 marginBottom: '8px'
               }}>
-                Processing your ZIP file...
+                Validating your application...
               </p>
               <div style={{
                 width: '200px',
@@ -293,7 +346,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                 }} />
               </div>
               <p style={{ fontSize: '14px', color: '#64748b' }}>
-                {progress}% complete
+                Please wait...
               </p>
             </div>
           ) : (
@@ -343,8 +396,11 @@ export default function ZipUploadPage({ onUploadComplete }) {
               >
                 Browse files
               </button>
-              <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '20px' }}>
-                Accepted format: .zip  |  Maximum size: 200 MB
+              <p style={{ fontSize: '13px', color: '#475569', marginTop: '20px', fontWeight: '500' }}>
+                Accepted format: .zip | Maximum size: 200 MB
+              </p>
+              <p style={{ fontSize: '13px', color: '#475569', marginTop: '8px', fontWeight: '500' }}>
+                Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the funding opportunity number. Example: HRSA-26-091
               </p>
             </div>
           )}
@@ -365,83 +421,29 @@ export default function ZipUploadPage({ onUploadComplete }) {
           </div>
         )}
 
-        {/* File Requirements */}
-        <div style={{
-          background: '#f8fafc',
-          borderRadius: '8px',
-          padding: '24px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <h3 style={{ 
-            fontSize: '15px', 
-            fontWeight: '700', 
-            color: '#1e293b',
-            marginTop: '0',
-            marginBottom: '20px'
-          }}>
-            Your ZIP file should include:
-          </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-            <div style={{ flex: '1 1 200px' }}>
-              <div style={{ display: 'flex', alignItems: 'start' }}>
-                <div style={{ fontSize: '24px', marginRight: '12px' }}>📄</div>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px', marginBottom: '4px' }}>SF-424 form</div>
-                  <div style={{ color: '#64748b', fontSize: '13px' }}>Required if applicable</div>
-                </div>
-              </div>
-            </div>
-            <div style={{ flex: '1 1 200px' }}>
-              <div style={{ display: 'flex', alignItems: 'start' }}>
-                <div style={{ fontSize: '24px', marginRight: '12px' }}>📍</div>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px', marginBottom: '4px' }}>PPOP form</div>
-                  <div style={{ color: '#64748b', fontSize: '13px' }}>Required if applicable</div>
-                </div>
-              </div>
-            </div>
-            <div style={{ flex: '1 1 200px' }}>
-              <div style={{ display: 'flex', alignItems: 'start' }}>
-                <div style={{ fontSize: '24px', marginRight: '12px' }}>📎</div>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px', marginBottom: '4px' }}>Attachments</div>
-                  <div style={{ color: '#64748b', fontSize: '13px' }}>As needed</div>
-                </div>
-              </div>
-            </div>
-            <div style={{ flex: '1 1 200px' }}>
-              <div style={{ display: 'flex', alignItems: 'start' }}>
-                <div style={{ fontSize: '24px', marginRight: '12px' }}>📊</div>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px', marginBottom: '4px' }}>File size</div>
-                  <div style={{ color: '#64748b', fontSize: '13px' }}>Under 200 MB</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         {/* Help Section */}
         <div style={{
           marginTop: '32px',
-          padding: '16px 20px',
-          background: '#f8fafc',
+          padding: '20px',
+          background: '#f0f9ff',
           borderRadius: '8px',
-          border: '1px solid #e2e8f0',
+          border: '2px solid #0ea5e9',
           textAlign: 'center'
         }}>
           <a 
-            href="https://help.hrsa.gov/x/MoAfFg" 
+            href="https://help.hrsa.gov/pages/releaseview.action?pageId=4816898&IsPopUp=true" 
             target="_blank" 
             rel="noopener noreferrer"
             style={{ 
-              color: '#2563eb', 
-              fontSize: '14px',
-              textDecoration: 'none',
-              fontWeight: '600'
+              textDecoration: 'none'
             }}
           >
-            Need Help?
+            <div style={{ fontSize: '16px', fontWeight: '700', color: '#0ea5e9', marginBottom: '4px' }}>
+              Need Help?
+            </div>
+            <div style={{ fontSize: '14px', color: '#0c4a6e' }}>
+              Learn more about forms, file requirements, and AVA
+            </div>
           </a>
         </div>
       </div>

@@ -107,8 +107,8 @@ export default function AVAChatAssistant() {
       // Build AI response matching prod format EXACTLY
       let aiMessage = '';
       
-      // Calculate status for each section
-      const hasPageCount = zipResult.attachments && zipResult.attachments.total_files > 0;
+      // Calculate status for each section - only count page count if there are actual attachment files (not just forms)
+      const hasPageCount = zipResult.attachments && zipResult.attachments.files && zipResult.attachments.files.length > 0;
       const pageCountPassed = hasPageCount && zipResult.attachments.page_count_ok === true;
       
       const hasSF424 = zipResult.sf424_validation && zipResult.sf424_validation.extracted;
@@ -125,77 +125,56 @@ export default function AVAChatAssistant() {
       const hasPPOP = zipResult.ppop_validation && zipResult.ppop_validation.extracted;
       const ppopPassed = hasPPOP && zipResult.ppop_validation.validation_results?.valid === true;
       
+      // If NOFO mismatch or deadline passed, page count should fail
+      const hasNofoMismatch = zipResult.sf424_validation?.nofo_mismatch;
+      const hasDeadlineError = zipResult.sf424_validation?.validation_results?.errors?.some(err => 
+        err.user_message && err.user_message.includes('deadline has passed')
+      );
+      const shouldSkipPageCount = hasNofoMismatch || hasDeadlineError;
+      const adjustedPageCountPassed = shouldSkipPageCount ? false : pageCountPassed;
+      
       // 1. SUMMARY SECTION (new design matching Designer.png)
-      const passedCount = [sf424Passed, ppopPassed, pageCountPassed].filter(Boolean).length;
-      const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !pageCountPassed].filter(Boolean).length;
+      const passedCount = [sf424Passed, ppopPassed, adjustedPageCountPassed].filter(Boolean).length;
+      const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !adjustedPageCountPassed].filter(Boolean).length;
       
-      aiMessage += '<div style="background: white; border-radius: 12px; padding: 14px 18px; margin: 0 auto 20px auto; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
+      // Left-aligned validation summary with exact spacing
+      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #005ea2;">📋 Validation Summary</div>\n';
+      aiMessage += `✅ ${passedCount} Passed   ❌ ${failedCount} Failed\n\n`;
+      aiMessage += '--------------------------------\n';
       
-      // Title with clipboard icon
-      aiMessage += '<div style="display: flex; align-items: center; margin-bottom: 10px;">\n';
-      aiMessage += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>\n';
-      aiMessage += '<div style="font-size: 19px; font-weight: 700; color: #1e293b;">Validation Summary</div>\n';
-      aiMessage += '</div>\n';
-      
-      // Passed/Failed counts
-      aiMessage += '<div style="display: flex; justify-content: space-around; margin-bottom: 12px;">\n';
-      aiMessage += `<div style="display: flex; align-items: center; font-size: 15px; font-weight: 700; color: #10b981;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;"><polyline points="20 6 9 17 4 12"/></svg>${passedCount} Passed</div>\n`;
-      aiMessage += `<div style="display: flex; align-items: center; font-size: 15px; font-weight: 700; color: #ef4444;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;"><polyline points="6 18 18 6"/><polyline points="6 6 18 18"/></svg>${failedCount} Failed</div>\n`;
-      aiMessage += '</div>\n';
-      
-      // Horizontal divider
-      aiMessage += '<div style="border-top: 1px solid #e5e7eb; margin-bottom: 10px;"></div>\n';
-      
-      // Form list with badges
       if (hasSF424) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">SF-424 Form</div>\n';
-        if (sf424Passed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = sf424Passed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `SF-424 Form      ${badge}\n`;
       }
       
       if (hasPPOP) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PPOP Form</div>\n';
-        if (ppopPassed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `PerformanceSite Validation      ${badge}\n`;
       }
       
       if (hasPageCount) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Page Count</div>\n';
-        if (pageCountPassed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = adjustedPageCountPassed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `Application Page Limit      ${badge}\n`;
       }
       
       if (!hasPageCount && !hasPPOP && !hasSF424) {
-        aiMessage += '<div style="text-align: center; padding: 20px; color: #64748b;">⚠️ No forms found for validation</div>\n';
+        aiMessage += '⚠️ No forms found for validation\n';
       }
       
-      aiMessage += '</div>\n\n';
+      aiMessage += '--------------------------------\n\n';
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📄 SF-424 Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
         // Check for NOFO mismatch first
         if (sf424.nofo_mismatch) {
-          aiMessage += `❌ ${sf424.nofo_error.user_message}\n\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the ZIP filename.\n\n';
+          const expected = sf424.nofo_error.expected || '';
+          const actual = sf424.nofo_error.actual || '';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
         } else {
           // Normal SF-424 validation display
           const fields = sf424.fields || {};
@@ -248,7 +227,8 @@ export default function AVAChatAssistant() {
                   aiMessage += `   • ${err.field_location}\n`;
                 }
                 
-                if (err.image_path) {
+                // Only show image if it exists and is not empty
+                if (err.image_path && err.image_path.trim() !== '') {
                   aiMessage += `   <img src="${err.image_path}" alt="${err.field_name} field" style="max-width: 100%; margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 4px;" />\n`;
                 }
                 
@@ -258,7 +238,8 @@ export default function AVAChatAssistant() {
                 
                 aiMessage += '\n';
                 
-                if (err.guidance) {
+                // Only show guidance if it exists and is not empty
+                if (err.guidance && err.guidance.trim() !== '') {
                   aiMessage += '   <span style="color: #0066cc; font-weight: 600;">How to Fix:</span>\n';
                   const guidanceText = err.guidance.replace(/<br>/g, '\n   ');
                   const cleanGuidance = guidanceText.replace(/<[^>]+>/g, '');
@@ -267,6 +248,7 @@ export default function AVAChatAssistant() {
                       aiMessage += `   ${line.trim()}\n`;
                     }
                   });
+                  aiMessage += '\n';
                 }
                 aiMessage += '\n';
               });
@@ -277,9 +259,9 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📍 PPOP Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite Validation</div>\n';
         if (ppopPassed) {
-          aiMessage += '✅ All PPOP validations passed\n\n';
+          aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
           const ppopErrors = zipResult.ppop_validation.validation_results.errors;
           ppopErrors.forEach((err, index) => {
@@ -289,43 +271,55 @@ export default function AVAChatAssistant() {
         }
       }
       
-      // 4. PAGE COUNT SECTION
+      // 4. PAGE COUNT SECTION - Show NOFO error if mismatch exists
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📎 Page Count Validation:</div>\n';
-        const att = zipResult.attachments;
-        const countedFiles = att.files || [];
-        const excludedFiles = att.excluded_files || [];
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         
-        // Show counted files
-        if (countedFiles.length > 0) {
-          aiMessage += '**Files counted towards page limit:**\n';
-          countedFiles.forEach(f => {
-            const pageText = f.pages === 1 ? 'page' : 'pages';
-            aiMessage += `   • ${f.name} (${f.pages} ${pageText})\n`;
-          });
+        // Show NOFO mismatch error if it exists
+        if (hasNofoMismatch) {
+          const sf424 = zipResult.sf424_validation;
+          const expected = sf424.nofo_error?.expected || '';
+          const actual = sf424.nofo_error?.actual || '';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+        } else {
+          // Only show page count details if no NOFO mismatch
+          const att = zipResult.attachments;
+          const countedFiles = att.files || [];
+          const excludedFiles = att.excluded_files || [];
           
-          const totalPageText = att.total_pages === 1 ? 'page' : 'pages';
-          aiMessage += `\n**Total: ${att.total_pages} ${totalPageText}**`;
+          // Show total pages first
           if (att.max_attachment_page_count) {
-            aiMessage += ` (Maximum Page Limit: ${att.max_attachment_page_count})`;
+            aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+          } else {
+            aiMessage += `**Total Pages: ${att.total_pages}**`;
           }
           if (pageCountPassed) {
-            aiMessage += ' ✅\n';
+            aiMessage += ' ✅\n\n';
           } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n';
+            aiMessage += ' ❌ EXCEEDED\n\n';
           } else {
+            aiMessage += '\n\n';
+          }
+          
+          // Show counted files
+          if (countedFiles.length > 0) {
+            aiMessage += '**Attachments/documents that count toward the page limit:**\n';
+            countedFiles.forEach(f => {
+              const pageText = f.pages === 1 ? 'page' : 'pages';
+              aiMessage += `• ${f.name} (${f.pages} ${pageText})\n`;
+            });
             aiMessage += '\n';
           }
-          aiMessage += '\n';
-        }
-        
-        // Show excluded files
-        if (excludedFiles.length > 0) {
-          aiMessage += '**Files excluded from page count:**\n';
-          excludedFiles.forEach(f => {
-            aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
-          });
-          aiMessage += '\n';
+          
+          // Show excluded files
+          if (excludedFiles.length > 0) {
+            aiMessage += '**Attachments/documents that do not count toward the page limit:**\n';
+            excludedFiles.forEach(f => {
+              aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
+            });
+            aiMessage += '\n';
+          }
         }
       }
       
@@ -419,8 +413,8 @@ export default function AVAChatAssistant() {
       // Build AI response
       let aiMessage = '';
       
-      // Calculate status for each section
-      const hasPageCount = zipResult.attachments && zipResult.attachments.total_files > 0;
+      // Calculate status for each section - only count page count if there are actual attachment files (not just forms)
+      const hasPageCount = zipResult.attachments && zipResult.attachments.files && zipResult.attachments.files.length > 0;
       const pageCountPassed = hasPageCount && zipResult.attachments.page_count_ok === true;
       
       const hasSF424 = zipResult.sf424_validation && zipResult.sf424_validation.extracted;
@@ -437,77 +431,56 @@ export default function AVAChatAssistant() {
       const hasPPOP = zipResult.ppop_validation && zipResult.ppop_validation.extracted;
       const ppopPassed = hasPPOP && zipResult.ppop_validation.validation_results?.valid === true;
       
+      // If NOFO mismatch or deadline passed, page count should fail
+      const hasNofoMismatch = zipResult.sf424_validation?.nofo_mismatch;
+      const hasDeadlineError = zipResult.sf424_validation?.validation_results?.errors?.some(err => 
+        err.user_message && err.user_message.includes('deadline has passed')
+      );
+      const shouldSkipPageCount = hasNofoMismatch || hasDeadlineError;
+      const adjustedPageCountPassed = shouldSkipPageCount ? false : pageCountPassed;
+      
       // 1. SUMMARY SECTION (new design matching Designer.png)
-      const passedCount = [sf424Passed, ppopPassed, pageCountPassed].filter(Boolean).length;
-      const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !pageCountPassed].filter(Boolean).length;
+      const passedCount = [sf424Passed, ppopPassed, adjustedPageCountPassed].filter(Boolean).length;
+      const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !adjustedPageCountPassed].filter(Boolean).length;
       
-      aiMessage += '<div style="background: white; border-radius: 12px; padding: 14px 18px; margin: 0 auto 20px auto; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">\n';
+      // Left-aligned validation summary with exact spacing
+      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #005ea2;">📋 Validation Summary</div>\n';
+      aiMessage += `✅ ${passedCount} Passed   ❌ ${failedCount} Failed\n\n`;
+      aiMessage += '--------------------------------\n';
       
-      // Title with clipboard icon
-      aiMessage += '<div style="display: flex; align-items: center; margin-bottom: 10px;">\n';
-      aiMessage += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>\n';
-      aiMessage += '<div style="font-size: 19px; font-weight: 700; color: #1e293b;">Validation Summary</div>\n';
-      aiMessage += '</div>\n';
-      
-      // Passed/Failed counts
-      aiMessage += '<div style="display: flex; justify-content: space-around; margin-bottom: 12px;">\n';
-      aiMessage += `<div style="display: flex; align-items: center; font-size: 15px; font-weight: 700; color: #10b981;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;"><polyline points="20 6 9 17 4 12"/></svg>${passedCount} Passed</div>\n`;
-      aiMessage += `<div style="display: flex; align-items: center; font-size: 15px; font-weight: 700; color: #ef4444;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 5px;"><polyline points="6 18 18 6"/><polyline points="6 6 18 18"/></svg>${failedCount} Failed</div>\n`;
-      aiMessage += '</div>\n';
-      
-      // Horizontal divider
-      aiMessage += '<div style="border-top: 1px solid #e5e7eb; margin-bottom: 10px;"></div>\n';
-      
-      // Form list with badges
       if (hasSF424) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">SF-424 Form</div>\n';
-        if (sf424Passed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = sf424Passed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `SF-424 Form      ${badge}\n`;
       }
       
       if (hasPPOP) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f3f4f6;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">PPOP Form</div>\n';
-        if (ppopPassed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `PerformanceSite Validation      ${badge}\n`;
       }
       
       if (hasPageCount) {
-        aiMessage += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0;">\n';
-        aiMessage += '<div style="font-size: 14px; font-weight: 600; color: #1e293b;">Page Count</div>\n';
-        if (pageCountPassed) {
-          aiMessage += '<div style="background: #10b981; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>PASSED</div>\n';
-        } else {
-          aiMessage += '<div style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; display: flex; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>FAILED</div>\n';
-        }
-        aiMessage += '</div>\n';
+        const badge = adjustedPageCountPassed ? '✅ PASSED' : '❌ FAILED';
+        aiMessage += `Application Page Limit      ${badge}\n`;
       }
       
       if (!hasPageCount && !hasPPOP && !hasSF424) {
-        aiMessage += '<div style="text-align: center; padding: 20px; color: #64748b;">⚠️ No forms found for validation</div>\n';
+        aiMessage += '⚠️ No forms found for validation\n';
       }
       
-      aiMessage += '</div>\n\n';
+      aiMessage += '--------------------------------\n\n';
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📄 SF-424 Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
         // Check for NOFO mismatch first
         if (sf424.nofo_mismatch) {
-          aiMessage += `❌ ${sf424.nofo_error.user_message}\n\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the ZIP filename.\n\n';
+          const expected = sf424.nofo_error.expected || '';
+          const actual = sf424.nofo_error.actual || '';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
         } else {
           // Normal SF-424 validation display
           const fields = sf424.fields || {};
@@ -560,7 +533,8 @@ export default function AVAChatAssistant() {
                   aiMessage += `   • ${err.field_location}\n`;
                 }
                 
-                if (err.image_path) {
+                // Only show image if it exists and is not empty
+                if (err.image_path && err.image_path.trim() !== '') {
                   aiMessage += `   <img src="${err.image_path}" alt="${err.field_name} field" style="max-width: 100%; margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 4px;" />\n`;
                 }
                 
@@ -570,7 +544,8 @@ export default function AVAChatAssistant() {
                 
                 aiMessage += '\n';
                 
-                if (err.guidance) {
+                // Only show guidance if it exists and is not empty
+                if (err.guidance && err.guidance.trim() !== '') {
                   aiMessage += '   <span style="color: #0066cc; font-weight: 600;">How to Fix:</span>\n';
                   const guidanceText = err.guidance.replace(/<br>/g, '\n   ');
                   const cleanGuidance = guidanceText.replace(/<[^>]+>/g, '');
@@ -579,6 +554,7 @@ export default function AVAChatAssistant() {
                       aiMessage += `   ${line.trim()}\n`;
                     }
                   });
+                  aiMessage += '\n';
                 }
                 aiMessage += '\n';
               });
@@ -589,9 +565,9 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📍 PPOP Form Validation:</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite Validation</div>\n';
         if (ppopPassed) {
-          aiMessage += '✅ All PPOP validations passed\n\n';
+          aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
           const ppopErrors = zipResult.ppop_validation.validation_results.errors;
           ppopErrors.forEach((err, index) => {
@@ -601,43 +577,55 @@ export default function AVAChatAssistant() {
         }
       }
       
-      // 4. PAGE COUNT SECTION
+      // 4. PAGE COUNT SECTION - Show NOFO error if mismatch exists
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 17px; font-weight: 700; margin-bottom: 4px;">📎 Page Count Validation:</div>\n';
-        const att = zipResult.attachments;
-        const countedFiles = att.files || [];
-        const excludedFiles = att.excluded_files || [];
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         
-        // Show counted files
-        if (countedFiles.length > 0) {
-          aiMessage += '**Files counted towards page limit:**\n';
-          countedFiles.forEach(f => {
-            const pageText = f.pages === 1 ? 'page' : 'pages';
-            aiMessage += `   • ${f.name} (${f.pages} ${pageText})\n`;
-          });
+        // Show NOFO mismatch error if it exists
+        if (hasNofoMismatch) {
+          const sf424 = zipResult.sf424_validation;
+          const expected = sf424.nofo_error?.expected || '';
+          const actual = sf424.nofo_error?.actual || '';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+        } else {
+          // Only show page count details if no NOFO mismatch
+          const att = zipResult.attachments;
+          const countedFiles = att.files || [];
+          const excludedFiles = att.excluded_files || [];
           
-          const totalPageText = att.total_pages === 1 ? 'page' : 'pages';
-          aiMessage += `\n**Total: ${att.total_pages} ${totalPageText}**`;
+          // Show total pages first
           if (att.max_attachment_page_count) {
-            aiMessage += ` (Maximum Page Limit: ${att.max_attachment_page_count})`;
+            aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+          } else {
+            aiMessage += `**Total Pages: ${att.total_pages}**`;
           }
           if (pageCountPassed) {
-            aiMessage += ' ✅\n';
+            aiMessage += ' ✅\n\n';
           } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n';
+            aiMessage += ' ❌ EXCEEDED\n\n';
           } else {
+            aiMessage += '\n\n';
+          }
+          
+          // Show counted files
+          if (countedFiles.length > 0) {
+            aiMessage += '**Attachments/documents that count toward the page limit:**\n';
+            countedFiles.forEach(f => {
+              const pageText = f.pages === 1 ? 'page' : 'pages';
+              aiMessage += `• ${f.name} (${f.pages} ${pageText})\n`;
+            });
             aiMessage += '\n';
           }
-          aiMessage += '\n';
-        }
-        
-        // Show excluded files
-        if (excludedFiles.length > 0) {
-          aiMessage += '**Files excluded from page count:**\n';
-          excludedFiles.forEach(f => {
-            aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
-          });
-          aiMessage += '\n';
+          
+          // Show excluded files
+          if (excludedFiles.length > 0) {
+            aiMessage += '**Attachments/documents that do not count toward the page limit:**\n';
+            excludedFiles.forEach(f => {
+              aiMessage += `   • ${f.name} - ${f.exclusion_reason}\n`;
+            });
+            aiMessage += '\n';
+          }
         }
       }
       
@@ -679,22 +667,6 @@ export default function AVAChatAssistant() {
           textAlign: 'center'
         }}
       >
-        <Box sx={{ mb: 4 }}>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700,
-              color: '#1e4d5a',
-              mb: 1
-            }}
-          >
-            AVA
-          </Typography>
-          <Typography variant="h6" sx={{ color: '#424242', fontWeight: 500 }}>
-            Application Validation Assistant
-          </Typography>
-        </Box>
-
         {uploading ? (
           <Box sx={{ py: 4 }}>
             <CircularProgress size={60} sx={{ mb: 3, color: '#1e4d5a' }} />

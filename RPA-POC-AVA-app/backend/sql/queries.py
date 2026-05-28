@@ -13,7 +13,8 @@ QUERIES = {
             fc.FundingCycleCode,
             fc.AnnouncementNumber,
             fc.ProgramId,
-            fc.applicationsupportcode AS [TypeOfAppByFO]
+            fc.applicationsupportcode AS [TypeOfAppByFO],
+            fc.ApplicationAvailableDate
         FROM dbo.FundingCycles fc
         WHERE (AnnouncementNumber IS NOT NULL 
                AND fc.AnnouncementNumber = ?)

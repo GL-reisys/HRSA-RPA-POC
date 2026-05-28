@@ -107,7 +107,7 @@ class DatabaseService:
         """
         Get funding cycle by announcement number.
         Maps to: GetFundingCycleByCode statement
-        Returns: FundingOpportunity model (5 fields only) or None
+        Returns: FundingOpportunity model (6 fields) or None
         """
         if self.use_sql_server:
             cursor = self.conn.cursor()
@@ -121,19 +121,30 @@ class DatabaseService:
                     funding_cycle_code=row[1],
                     announcement_number=row[2],
                     program_id=row[3],
-                    type_of_app_by_fo=row[4]
+                    type_of_app_by_fo=row[4],
+                    application_available_date=row[5]
                 )
             return None
         else:
             for fc_data in self.data.get('funding_cycles', []):
                 if fc_data.get('announcement_number') == announcement_number:
-                    # Only extract the 5 fields that match FundingCycleInfo.cs
+                    # Parse application_available_date string to datetime
+                    app_date = fc_data.get('application_available_date')
+                    if app_date and isinstance(app_date, str):
+                        from datetime import datetime
+                        try:
+                            app_date = datetime.fromisoformat(app_date.replace('Z', '+00:00'))
+                        except:
+                            app_date = None
+                    
+                    # Only extract the 6 fields that match FundingCycleInfo.cs
                     return FundingOpportunity(
                         funding_cycle_id=fc_data.get('funding_cycle_id'),
                         funding_cycle_code=fc_data.get('funding_cycle_code'),
                         announcement_number=fc_data.get('announcement_number'),
                         type_of_app_by_fo=fc_data.get('type_of_app_by_fo', 1),  # Default to 1 if not present
-                        program_id=int(fc_data.get('program_id', 0)) if isinstance(fc_data.get('program_id'), str) else fc_data.get('program_id', 0)
+                        program_id=int(fc_data.get('program_id', 0)) if isinstance(fc_data.get('program_id'), str) else fc_data.get('program_id', 0),
+                        application_available_date=app_date
                     )
             return None
     
