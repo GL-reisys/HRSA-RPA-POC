@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import pikepdf
 import re
+from datetime import datetime
 from services.database_service import DatabaseService
 from models.validation_error import ValidationError, ValidationErrorFactory
 
@@ -62,8 +63,9 @@ class SF424Validator:
         if not form_data.get('samuei'):
             errors.append(ValidationErrorFactory.required_field("UEI (Unique Entity Identifier)", "UEI"))
         
-        if not form_data.get('employer_taxpayer_identification_number'):
-            errors.append(ValidationErrorFactory.required_field("EIN (Employer Identification Number)", "EIN"))
+        # EIN validation removed per user request
+        # if not form_data.get('employer_taxpayer_identification_number'):
+        #     errors.append(ValidationErrorFactory.required_field("EIN (Employer Identification Number)", "EIN"))
         
         if not form_data.get('project_title'):
             errors.append(ValidationErrorFactory.required_field("Project Title", "PROJECT_TITLE"))
@@ -86,10 +88,10 @@ class SF424Validator:
         if uei and (len(uei) != 12 or not uei.isalnum()):
             errors.append(ValidationErrorFactory.invalid_format("UEI", "Must be 12 alphanumeric characters", "UEI"))
         
-        # Validate EIN format (XX-XXXXXXX)
-        ein = form_data.get('employer_taxpayer_identification_number')
-        if ein and not self._validate_ein_format(ein):
-            errors.append(ValidationErrorFactory.invalid_format("EIN", "Must be XX-XXXXXXX (e.g., 12-3456789)", "EIN"))
+        # EIN format validation removed per user request
+        # ein = form_data.get('employer_taxpayer_identification_number')
+        # if ein and not self._validate_ein_format(ein):
+        #     errors.append(ValidationErrorFactory.invalid_format("EIN", "Must be XX-XXXXXXX (e.g., 12-3456789)", "EIN"))
         
         # Validate email format
         email = form_data.get('email')
@@ -257,12 +259,25 @@ class SF424Validator:
         # Funding Opportunity Validation
         # ========================================
         if fon:
-            # Get FundingOpportunity model from database (FundingCycleInfo.cs: 5 fields)
+            # Get FundingOpportunity model from database (FundingCycleInfo.cs: 6 fields)
             funding_opportunity = self.db_service.get_funding_cycle_by_code(fon)
             
             if not funding_opportunity:
                 errors.append(ValidationErrorFactory.fon_not_found(fon))
             else:
+                # Check if application deadline has passed
+                if funding_opportunity.application_available_date:
+                    current_date = datetime.now()
+                    deadline_date = funding_opportunity.application_available_date
+                    # If deadline_date is naive, make current_date naive too for comparison
+                    if deadline_date.tzinfo is None:
+                        current_date = current_date.replace(tzinfo=None)
+                    
+                    if deadline_date < current_date:
+                        # Deadline has passed - add error and skip further validation
+                        errors.append(ValidationErrorFactory.fon_deadline_passed(fon))
+                        return errors  # Skip all other validations
+                
                 # Validate application type matches funding opportunity requirements
                 application_type = form_data.get('application_type')
                 if application_type:

@@ -127,6 +127,19 @@ class ValidationErrorFactory:
         )
 
     @staticmethod
+    def fon_deadline_passed(fon: str) -> ValidationError:
+        return ValidationErrorFactory._create(
+            "<strong>Funding Opportunity Number deadline has passed</strong>",
+            f"The application deadline for funding opportunity {fon} has passed. This funding opportunity is no longer accepting applications.",
+            field_name="Funding Opportunity Number",
+            page_number=1,
+            field_location="Page 1, Field 12",
+            current_value=fon,
+            guidance="",
+            image_path=""
+        )
+
+    @staticmethod
     def type_mismatch_continuation_required(fon: str, application_type: str = "New") -> ValidationError:
         return ValidationErrorFactory._create(
             "Type of Application is incorrect. This funding opportunity only accepts continuation applications.",

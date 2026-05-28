@@ -75,9 +75,9 @@ class PPOPValidator:
             errors.append(ValidationErrorFactory.ppop_api_disabled())
             return errors
         
-        # Validate each address
-        for address in ppop_data.get_all_addresses():
-            address_errors = self._validate_address(address)
+        # Validate only Primary Site address (skip Other Site per requirements)
+        if ppop_data.primary_site:
+            address_errors = self._validate_address(ppop_data.primary_site)
             errors.extend(address_errors)
         
         return errors

@@ -172,11 +172,11 @@ export default function ChatInterface({
   return (
     <Box sx={{ 
       minHeight: '100vh',
-      backgroundColor: '#f5f7f9',
+      backgroundColor: '#e5faff',
       p: 3 
     }}>
       <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#1e4d5a' }}>
+      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#005ea2' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
             <Typography variant="h5" sx={{ fontWeight: 600, color: '#ffffff' }}>
@@ -226,10 +226,10 @@ export default function ChatInterface({
                   maxWidth: '70%',
                   backgroundColor: msg.role === 'user' 
                     ? '#e8f4f8' 
-                    : '#ffffff',
+                    : '#ccecf2',
                   background: msg.role === 'user' 
                     ? '#e8f4f8' 
-                    : '#ffffff',
+                    : '#ccecf2',
                   color: '#000',
                   border: msg.role === 'user' ? '1px solid #90caf9' : '1px solid #d0d0d0',
                   borderRadius: 2,

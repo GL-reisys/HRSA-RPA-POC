@@ -1,16 +1,19 @@
 from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
 
 class FundingOpportunity(BaseModel):
     """
     Funding Opportunity entity - exactly matches FundingCycleInfo.cs
     
     Reference: MIGRATION_DOCS/References/FundingCycleInfo.cs
-    C# Properties (5 total):
+    C# Properties (6 total):
     - FundingCycleId (Guid)
     - FundingCycleCode (string)
     - AnnouncementNumber (string)
     - TypeOfAppByFO (int)
     - ProgramId (int)
+    - ApplicationAvailableDate (datetime)
     """
     
     funding_cycle_id: str = Field(..., alias="FundingCycleId", description="Unique funding cycle identifier (Guid)")
@@ -18,6 +21,7 @@ class FundingOpportunity(BaseModel):
     announcement_number: str = Field(..., alias="AnnouncementNumber", description="Funding Opportunity Number (FON)")
     type_of_app_by_fo: int = Field(..., alias="TypeOfAppByFO", description="Application type code (int)")
     program_id: int = Field(..., alias="ProgramId", description="Program identifier (int)")
+    application_available_date: Optional[datetime] = Field(None, alias="ApplicationAvailableDate", description="Application deadline date")
     
     class Config:
         populate_by_name = True  # Allow both snake_case and PascalCase
