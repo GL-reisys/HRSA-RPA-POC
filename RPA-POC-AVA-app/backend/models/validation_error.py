@@ -114,10 +114,10 @@ class ValidationErrorFactory:
 
     @staticmethod
     def fon_not_found(fon: str) -> ValidationError:
-        guidance = "• Verify the Funding Opportunity Number by checking the official Grants.gov website for current funding opportunities.<br>• Confirm that the Funding Opportunity Number HRSA-26-994 is correct by checking the official Grants.gov website for current opportunities."
+        guidance = f"• Verify the Funding Opportunity Number by checking the official Grants.gov website for current funding opportunities.<br>• Confirm that the Funding Opportunity Number {fon} is correct by checking the official Grants.gov website for current opportunities."
         return ValidationErrorFactory._create(
             "Funding Opportunity Number is incorrect.",
-            f"Funding Opportunity Number not found in system: {fon}. This funding opportunity number does not exist or is not currently accepting applications.",
+            f"Funding Opportunity Number not found in system: {fon}. This Funding Opportunity number does not exist or is not currently accepting applications.",
             field_name="Funding Opportunity Number",
             page_number=1,
             field_location="Page 1, Field 12",
