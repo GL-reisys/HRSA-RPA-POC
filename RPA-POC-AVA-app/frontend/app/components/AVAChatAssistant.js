@@ -64,7 +64,7 @@ export default function AVAChatAssistant() {
     const isZip = uploadedFile.name.toLowerCase().endsWith('.zip');
     
     if (!isZip) {
-      setError('Please upload a ZIP file containing SF-424, PPOP, and attachments');
+      setError('Invalid Application filename extension - Please use a zip file with a Funding Opportunity Number');
       return;
     }
 
@@ -149,7 +149,7 @@ export default function AVAChatAssistant() {
       
       if (hasPPOP) {
         const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `PerformanceSite Validation      ${badge}\n`;
+        aiMessage += `Performance Site Validation      ${badge}\n`;
       }
       
       if (hasPageCount) {
@@ -259,7 +259,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site Validation</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -288,16 +288,18 @@ export default function AVAChatAssistant() {
           const countedFiles = att.files || [];
           const excludedFiles = att.excluded_files || [];
           
-          // Show total pages first
+          // Show total pages with pass/fail status
           if (att.max_attachment_page_count) {
-            aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+            aiMessage += `**Total Pages: ${att.total_pages} / ${att.max_attachment_page_count}**`;
           } else {
             aiMessage += `**Total Pages: ${att.total_pages}**`;
           }
-          if (pageCountPassed) {
-            aiMessage += ' ✅\n\n';
-          } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n\n';
+          
+          // Always show badge when we have page count validation
+          if (adjustedPageCountPassed) {
+            aiMessage += ' ✅ PASSED\n\n';
+          } else if (hasPageCount) {
+            aiMessage += ' ❌ FAILED\n\n';
           } else {
             aiMessage += '\n\n';
           }
@@ -353,12 +355,10 @@ export default function AVAChatAssistant() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/zip': ['.zip'],
-      'application/x-zip-compressed': ['.zip']
-    },
     maxFiles: 1,
-    multiple: false
+    multiple: false,
+    noClick: false,
+    noKeyboard: false
   });
 
   const handleReset = async () => {
@@ -455,7 +455,7 @@ export default function AVAChatAssistant() {
       
       if (hasPPOP) {
         const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `PerformanceSite Validation      ${badge}\n`;
+        aiMessage += `Performance Site Validation      ${badge}\n`;
       }
       
       if (hasPageCount) {
@@ -565,7 +565,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>PerformanceSite Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site Validation</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -594,16 +594,18 @@ export default function AVAChatAssistant() {
           const countedFiles = att.files || [];
           const excludedFiles = att.excluded_files || [];
           
-          // Show total pages first
+          // Show total pages with pass/fail status
           if (att.max_attachment_page_count) {
-            aiMessage += `**Total Pages: ${att.total_pages} (Application Page Limit - ${att.max_attachment_page_count})**`;
+            aiMessage += `**Total Pages: ${att.total_pages} / ${att.max_attachment_page_count}**`;
           } else {
             aiMessage += `**Total Pages: ${att.total_pages}**`;
           }
-          if (pageCountPassed) {
-            aiMessage += ' ✅\n\n';
-          } else if (att.page_count_ok === false) {
-            aiMessage += ' ❌ EXCEEDED\n\n';
+          
+          // Always show badge when we have page count validation
+          if (adjustedPageCountPassed) {
+            aiMessage += ' ✅ PASSED\n\n';
+          } else if (hasPageCount) {
+            aiMessage += ' ❌ FAILED\n\n';
           } else {
             aiMessage += '\n\n';
           }

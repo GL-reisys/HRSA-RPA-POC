@@ -265,19 +265,6 @@ class SF424Validator:
             if not funding_opportunity:
                 errors.append(ValidationErrorFactory.fon_not_found(fon))
             else:
-                # Check if application deadline has passed
-                if funding_opportunity.application_available_date:
-                    current_date = datetime.now()
-                    deadline_date = funding_opportunity.application_available_date
-                    # If deadline_date is naive, make current_date naive too for comparison
-                    if deadline_date.tzinfo is None:
-                        current_date = current_date.replace(tzinfo=None)
-                    
-                    if deadline_date < current_date:
-                        # Deadline has passed - add error and skip further validation
-                        errors.append(ValidationErrorFactory.fon_deadline_passed(fon))
-                        return errors  # Skip all other validations
-                
                 # Validate application type matches funding opportunity requirements
                 application_type = form_data.get('application_type')
                 if application_type:

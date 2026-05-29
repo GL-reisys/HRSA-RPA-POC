@@ -10,6 +10,12 @@ export default function ZipUploadPage({ onUploadComplete }) {
   const handleUpload = async (file) => {
     if (!file) return;
 
+    // Validate file extension
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      setError('Invalid Application filename extension - Please use a zip file with a Funding Opportunity Number');
+      return;
+    }
+
     setUploading(true);
     setError(null);
     setProgress(10);
@@ -56,10 +62,6 @@ export default function ZipUploadPage({ onUploadComplete }) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/zip': ['.zip'],
-      'application/x-zip-compressed': ['.zip']
-    },
     multiple: false,
     disabled: uploading
   });
@@ -128,7 +130,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               marginBottom: '8px',
               marginTop: '0'
             }}>
-              Welcome to Application Validation Assistant
+              Welcome to the Application Validation Assistant
             </h1>
             <div style={{ fontSize: '32px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
               (AVA)
@@ -159,11 +161,11 @@ export default function ZipUploadPage({ onUploadComplete }) {
               <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '700', color: '#0c4a6e' }}>
                 Upload Your Application Package (ZIP)
               </h3>
-              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#0c4a6e', fontWeight: '700' }}>
-                * Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the funding opportunity number. Example: HRSA-26-091
+              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0c4a6e', fontWeight: '700' }}>
+                * Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the Funding Opportunity number. Example: HRSA-26-091
               </p>
               <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#0c4a6e', fontWeight: '700' }}>
-                * Your application package should include one or both of the following forms and all supporting documents/attachments counted towards the page limit
+                * Your application package should include one or both of the following forms and all supporting documents/attachments towards Application page limit
               </p>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -176,13 +178,13 @@ export default function ZipUploadPage({ onUploadComplete }) {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>PerformanceSite</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Performance Site</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents/attachments</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents/attachments towards Application page limit</span>
                 </div>
               </div>
             </div>
@@ -209,7 +211,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               width: '64px',
               height: '64px',
               borderRadius: '12px',
-              background: '#e0f2fe',
+              background: '#e5faff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -260,7 +262,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               width: '64px',
               height: '64px',
               borderRadius: '12px',
-              background: progress === 100 ? '#e0f2fe' : '#f1f5f9',
+              background: progress === 100 ? '#e5faff' : '#e5faff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

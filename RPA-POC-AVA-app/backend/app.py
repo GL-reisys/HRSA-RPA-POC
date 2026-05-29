@@ -51,7 +51,7 @@ def create_app():
         }
     })
 
-    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+    app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024  # 250MB to support ZIP files up to 200MB
     app.config['UPLOAD_FOLDER'] = resolve_app_path(os.getenv('UPLOAD_DIR'), 'uploads')
     app.config['DATA_DIR'] = resolve_app_path(os.getenv('DATA_DIR'), 'database')
 
@@ -138,7 +138,7 @@ def create_app():
 
     @app.errorhandler(413)
     def request_entity_too_large(error):
-        return jsonify({'error': 'File size exceeds maximum limit of 10MB'}), 413
+        return jsonify({'error': 'File size exceeds maximum limit of 250MB'}), 413
 
     return app
 
