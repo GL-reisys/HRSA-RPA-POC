@@ -117,11 +117,11 @@ class DatabaseService:
             row = cursor.fetchone()
             if row:
                 return FundingOpportunity(
-                    funding_cycle_id=row[0],
-                    funding_cycle_code=row[1],
+                    funding_cycle_id=str(row[0]) if row[0] else None,
+                    funding_cycle_code=str(row[1]) if row[1] else None,
                     announcement_number=row[2],
-                    program_id=row[3],
-                    type_of_app_by_fo=row[4],
+                    program_id=int(row[3]) if row[3] else 0,
+                    type_of_app_by_fo=int(row[4]) if row[4] else 1,
                     application_available_date=row[5]
                 )
             return None
@@ -165,9 +165,9 @@ class DatabaseService:
             row = cursor.fetchone()
             if row:
                 return Organization(
-                    organization_id=row[0],
+                    organization_id=str(row[0]) if row[0] else None,
                     organization_name=row[1],
-                    uei=row[2]
+                    uei=str(row[2]) if row[2] else None
                 )
             return None
         else:
@@ -198,8 +198,8 @@ class DatabaseService:
             row = cursor.fetchone()
             if row:
                 return {
-                    'grant_id': row[0],
-                    'program_id': row[1]
+                    'grant_id': str(row[0]) if row[0] else None,
+                    'program_id': int(row[1]) if row[1] else None
                 }
             return None
         else:
@@ -229,13 +229,13 @@ class DatabaseService:
             results = []
             for row in cursor.fetchall():
                 results.append({
-                    'grant_id': row[0],
+                    'grant_id': str(row[0]) if row[0] else None,
                     'project_period_end_date': row[1],
                     'grant_number': row[2],
-                    'indefinite_flag': row[3],
+                    'indefinite_flag': int(row[3]) if row[3] is not None else 0,
                     'indefinite_date_value': row[4],
-                    'program_id': row[5],
-                    'organization_id': row[6],
+                    'program_id': int(row[5]) if row[5] else None,
+                    'organization_id': str(row[6]) if row[6] else None,
                     'grant_status': row[7]
                 })
             return results
@@ -328,10 +328,10 @@ class DatabaseService:
             results = []
             for row in cursor.fetchall():
                 results.append({
-                    'application_id': row[0],
-                    'application_status_flag': row[1],
-                    'application_type_code': row[2],
-                    'grant_id': row[3]
+                    'application_id': str(row[0]) if row[0] else None,
+                    'application_status_flag': int(row[1]) if row[1] is not None else None,
+                    'application_type_code': str(row[2]) if row[2] else None,
+                    'grant_id': str(row[3]) if row[3] else None
                 })
             return results
         else:
