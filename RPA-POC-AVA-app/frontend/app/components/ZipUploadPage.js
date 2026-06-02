@@ -12,7 +12,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
 
     // Validate file extension
     if (!file.name.toLowerCase().endsWith('.zip')) {
-      setError('Invalid Application filename extension - Please use a zip file with a Funding Opportunity Number');
+      setError('Invalid Application filename extension - Please use a ZIP file with a Funding Opportunity Number');
       return;
     }
 
@@ -141,7 +141,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               margin: '0',
               lineHeight: '1.5'
             }}>
-              Upload your application package and let AVA validate your forms and attachments quickly.
+              Upload your Application package and let AVA validate your forms and attachments quickly.
             </p>
           </div>
 
@@ -162,17 +162,17 @@ export default function ZipUploadPage({ onUploadComplete }) {
                 Upload Your Application Package (ZIP)
               </h3>
               <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0c4a6e', fontWeight: '700' }}>
-                * Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the Funding Opportunity number. Example: HRSA-26-091
+                * Make sure the ZIP file name is formatted HRSA-XX-YYY. Meaning, XX is the year and YYY is the Funding Opportunity Number. Example: HRSA-26-091
               </p>
               <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#0c4a6e', fontWeight: '700' }}>
-                * Your application package should include one or both of the following forms and all supporting documents/attachments towards Application page limit
+                * Your Application Package should include one or both of the following forms and all supporting documents/attachments towards the Application page limit:
               </p>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>SF-424 form</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>SF-424</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
@@ -184,7 +184,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ marginRight: '6px' }}>
                     <path d="M5 13l4 4L19 7" />
                   </svg>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents/attachments towards Application page limit</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>Supporting documents/attachments towards the Application page limit</span>
                 </div>
               </div>
             </div>
@@ -241,7 +241,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               color: '#1e293b',
               whiteSpace: 'pre-line'
             }}>
-              Upload ZIP file
+              Upload ZIP File
             </span>
           </div>
           
@@ -402,7 +402,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                 Accepted format: .zip | Maximum size: 200 MB
               </p>
               <p style={{ fontSize: '13px', color: '#475569', marginTop: '8px', fontWeight: '500' }}>
-                Make sure the zip name is in the format HRSA-XX-YYY where XX is the year and YYY is the funding opportunity number. Example: HRSA-26-091
+                Make sure the zip name is in the format HRSA-XX-YYY. Meaning, XX is the year and YYY is the funding opportunity number. Example: HRSA-26-091
               </p>
             </div>
           )}

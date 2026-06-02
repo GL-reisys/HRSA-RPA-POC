@@ -128,7 +128,7 @@ export default function ZipUpload({ onUploadSuccess }) {
             ZIP file should contain application attachments
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-            Announcement number will be extracted from SF-424 form
+            Announcement number will be extracted from SF-424
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
             or
