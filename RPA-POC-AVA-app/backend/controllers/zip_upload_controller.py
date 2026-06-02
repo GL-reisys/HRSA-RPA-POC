@@ -203,12 +203,14 @@ def upload_zip():
             max_att_pages = attachments.get('max_attachment_page_count')
             att_pages = attachments.get('attachment_pages', 0)
             form_pages = attachments.get('form_pages', 0)
+            total_pages = attachments.get('total_pages', 0)
             
             if max_att_pages is not None:
                 if attachments['page_count_ok']:
                     response['page_count_message'] = f"✓ Page count OK: {att_pages} pages (limit: {max_att_pages}) + {form_pages} form pages (excluded)"
                 else:
-                    response['page_count_message'] = f"⚠ Page count EXCEEDED: {att_pages} pages (limit: {max_att_pages}) + {form_pages} form pages (excluded)"
+                    # Page limit exceeded - show as error message but don't block upload
+                    response['page_count_message'] = f"Upload failed ❌\n\nTotal attachment pages: {total_pages}\nMaximum allowed: {max_att_pages}\n\nThe document exceeds the allowed page limit.\nPlease reduce the number of pages and try again."
             else:
                 response['page_count_message'] = f"Page count: {att_pages} attachment pages, {form_pages} form pages"
             

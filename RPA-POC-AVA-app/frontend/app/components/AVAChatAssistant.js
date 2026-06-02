@@ -64,7 +64,7 @@ export default function AVAChatAssistant() {
     const isZip = uploadedFile.name.toLowerCase().endsWith('.zip');
     
     if (!isZip) {
-      setError('Invalid Application filename extension - Please use a zip file with a Funding Opportunity Number');
+      setError('Invalid Application filename extension - Please use a ZIP file with a Funding Opportunity Number');
       return;
     }
 
@@ -144,12 +144,12 @@ export default function AVAChatAssistant() {
       
       if (hasSF424) {
         const badge = sf424Passed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `SF-424 Form      ${badge}\n`;
+        aiMessage += `SF-424      ${badge}\n`;
       }
       
       if (hasPPOP) {
         const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `Performance Site Validation      ${badge}\n`;
+        aiMessage += `Performance Site      ${badge}\n`;
       }
       
       if (hasPageCount) {
@@ -165,7 +165,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -173,8 +173,8 @@ export default function AVAChatAssistant() {
         if (sf424.nofo_mismatch) {
           const expected = sf424.nofo_error.expected || '';
           const actual = sf424.nofo_error.actual || '';
-          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 matches the Application zip filename.\n\n';
         } else {
           // Normal SF-424 validation display
           const fields = sf424.fields || {};
@@ -259,9 +259,9 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
         if (ppopPassed) {
-          aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
+          aiMessage += '✅ Address provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
           const ppopErrors = zipResult.ppop_validation.validation_results.errors;
           ppopErrors.forEach((err, index) => {
@@ -280,28 +280,36 @@ export default function AVAChatAssistant() {
           const sf424 = zipResult.sf424_validation;
           const expected = sf424.nofo_error?.expected || '';
           const actual = sf424.nofo_error?.actual || '';
-          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 matches the Application zip filename.\n\n';
         } else {
           // Only show page count details if no NOFO mismatch
           const att = zipResult.attachments;
           const countedFiles = att.files || [];
           const excludedFiles = att.excluded_files || [];
           
-          // Show total pages with pass/fail status
-          if (att.max_attachment_page_count) {
-            aiMessage += `**Total Pages: ${att.total_pages} / ${att.max_attachment_page_count}**`;
+          // Check if page limit is exceeded
+          if (att.max_attachment_page_count && !att.page_count_ok) {
+            // Show error message for page limit exceeded
+            aiMessage += '**Upload failed ❌**\n\n';
+            aiMessage += `**Total attached pages: ${att.total_pages}**\n`;
+            aiMessage += `**Maximum allowed: ${att.max_attachment_page_count}**\n\n`;
+            aiMessage += 'The document exceeds the allowed page limit.\n';
+            aiMessage += 'Please reduce the number of pages and try again.\n\n';
           } else {
-            aiMessage += `**Total Pages: ${att.total_pages}**`;
-          }
-          
-          // Always show badge when we have page count validation
-          if (adjustedPageCountPassed) {
-            aiMessage += ' ✅ PASSED\n\n';
-          } else if (hasPageCount) {
-            aiMessage += ' ❌ FAILED\n\n';
-          } else {
-            aiMessage += '\n\n';
+            // Show total pages with icon and status
+            if (adjustedPageCountPassed) {
+              aiMessage += '**Upload passed ✅**\n\n';
+            } else if (hasPageCount) {
+              aiMessage += '**Upload failed ❌**\n\n';
+            }
+            
+            if (att.max_attachment_page_count) {
+              aiMessage += `**Total attachment pages: ${att.total_pages}**\n`;
+              aiMessage += `**Maximum allowed: ${att.max_attachment_page_count}**\n\n`;
+            } else {
+              aiMessage += `**Total attachment pages: ${att.total_pages}**\n\n`;
+            }
           }
           
           // Show counted files
@@ -450,12 +458,12 @@ export default function AVAChatAssistant() {
       
       if (hasSF424) {
         const badge = sf424Passed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `SF-424 Form      ${badge}\n`;
+        aiMessage += `SF-424      ${badge}\n`;
       }
       
       if (hasPPOP) {
         const badge = ppopPassed ? '✅ PASSED' : '❌ FAILED';
-        aiMessage += `Performance Site Validation      ${badge}\n`;
+        aiMessage += `Performance Site      ${badge}\n`;
       }
       
       if (hasPageCount) {
@@ -471,7 +479,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Form Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -479,8 +487,8 @@ export default function AVAChatAssistant() {
         if (sf424.nofo_mismatch) {
           const expected = sf424.nofo_error.expected || '';
           const actual = sf424.nofo_error.actual || '';
-          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 matches the Application zip filename.\n\n';
         } else {
           // Normal SF-424 validation display
           const fields = sf424.fields || {};
@@ -565,9 +573,9 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #005ea2; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#005ea2" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
         if (ppopPassed) {
-          aiMessage += '✅ Address Provided in the Performance Site form passed all validations\n\n';
+          aiMessage += '✅ Address provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
           const ppopErrors = zipResult.ppop_validation.validation_results.errors;
           ppopErrors.forEach((err, index) => {
@@ -586,28 +594,36 @@ export default function AVAChatAssistant() {
           const sf424 = zipResult.sf424_validation;
           const expected = sf424.nofo_error?.expected || '';
           const actual = sf424.nofo_error?.actual || '';
-          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 form has <strong>${actual}</strong>\n`;
-          aiMessage += 'Please ensure the funding opportunity number in your SF-424 form matches the Application zip filename.\n\n';
+          aiMessage += `❌ <strong>Funding Opportunity Number mismatch:</strong> Application zip filename has <strong>${expected}</strong> but SF-424 has <strong>${actual}</strong>\n`;
+          aiMessage += 'Please ensure the funding opportunity number in your SF-424 matches the Application zip filename.\n\n';
         } else {
           // Only show page count details if no NOFO mismatch
           const att = zipResult.attachments;
           const countedFiles = att.files || [];
           const excludedFiles = att.excluded_files || [];
           
-          // Show total pages with pass/fail status
-          if (att.max_attachment_page_count) {
-            aiMessage += `**Total Pages: ${att.total_pages} / ${att.max_attachment_page_count}**`;
+          // Check if page limit is exceeded
+          if (att.max_attachment_page_count && !att.page_count_ok) {
+            // Show error message for page limit exceeded
+            aiMessage += '**Upload failed ❌**\n\n';
+            aiMessage += `**Total attached pages: ${att.total_pages}**\n`;
+            aiMessage += `**Maximum allowed: ${att.max_attachment_page_count}**\n\n`;
+            aiMessage += 'The document exceeds the allowed page limit.\n';
+            aiMessage += 'Please reduce the number of pages and try again.\n\n';
           } else {
-            aiMessage += `**Total Pages: ${att.total_pages}**`;
-          }
-          
-          // Always show badge when we have page count validation
-          if (adjustedPageCountPassed) {
-            aiMessage += ' ✅ PASSED\n\n';
-          } else if (hasPageCount) {
-            aiMessage += ' ❌ FAILED\n\n';
-          } else {
-            aiMessage += '\n\n';
+            // Show total pages with icon and status
+            if (adjustedPageCountPassed) {
+              aiMessage += '**Upload passed ✅**\n\n';
+            } else if (hasPageCount) {
+              aiMessage += '**Upload failed ❌**\n\n';
+            }
+            
+            if (att.max_attachment_page_count) {
+              aiMessage += `**Total attachment pages: ${att.total_pages}**\n`;
+              aiMessage += `**Maximum allowed: ${att.max_attachment_page_count}**\n\n`;
+            } else {
+              aiMessage += `**Total attachment pages: ${att.total_pages}**\n\n`;
+            }
           }
           
           // Show counted files
@@ -682,10 +698,10 @@ export default function AVAChatAssistant() {
         ) : (
           <Box>
             <Typography variant="h6" sx={{ color: '#1e4d5a', fontWeight: 600, mb: 2 }}>
-              Upload Zip file containing forms & attachments
+              Upload ZIP File Containing Forms & Attachments
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-              ZIP files must contain either an SF-424 form, PPOP form or both, and supporting documents
+              Application Package provided
             </Typography>
             
             <Box
