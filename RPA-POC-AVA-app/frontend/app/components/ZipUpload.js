@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Box, Button, Typography, LinearProgress, Alert, Chip } from '@mui/material';
-import FolderZipIcon from '@mui/icons-material/FolderZip';
 import DescriptionIcon from '@mui/icons-material/Description';
 import axios from 'axios';
 
@@ -120,7 +119,7 @@ export default function ZipUpload({ onUploadSuccess }) {
           id="zip-upload"
         />
         <label htmlFor="zip-upload">
-          <FolderZipIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+          <img src="/folder-zip-icon.png" alt="ZIP Folder" style={{ width: '80px', height: '80px', marginBottom: '16px' }} />
           <Typography variant="h6" gutterBottom>
             Drag and drop ZIP file here
           </Typography>

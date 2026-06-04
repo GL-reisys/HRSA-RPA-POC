@@ -10,6 +10,7 @@ from services.ppop_field_mapper import PPOPFieldMapper
 from services.ppop_validator import PPOPValidator
 from services.ai_service import AIService
 from services.session_manager import SessionManager
+from services.input_sanitizer import get_sanitizer
 from config.runtime import resolve_app_path
 from datetime import datetime
 
@@ -27,6 +28,7 @@ ppop_mapper = PPOPFieldMapper()
 validator = SF424Validator()
 ppop_validator = PPOPValidator()
 ai_service = AIService()
+sanitizer = get_sanitizer()
 session_manager = SessionManager(
     resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json'),
     upload_folder=UPLOAD_FOLDER,
@@ -401,6 +403,7 @@ def analyze_pdf():
 def chat_message():
     """
     Send chat message and get AI response with form context.
+    Rate limited to 10 requests per minute per IP to prevent abuse.
     """
     try:
         data = request.get_json()
@@ -410,6 +413,24 @@ def chat_message():
         
         if not file_id or not message:
             return jsonify({'error': 'file_id and message are required'}), 400
+        
+        # SECURITY: Sanitize user input to prevent prompt injection
+        try:
+            message = sanitizer.sanitize_message(message)
+        except ValueError as e:
+            return jsonify({
+                'error': f'Invalid message: {str(e)}'
+            }), 400
+        
+        # SECURITY: Check for PII in user message
+        pii_found = sanitizer.detect_pii(message)
+        if pii_found:
+            pii_details = ', '.join([f"{p['description']} ({p['masked_value']})" for p in pii_found])
+            print(f"⚠️ PII detected in chat message for file_id={file_id}: {pii_details}")
+            return jsonify({
+                'error': f'Your message contains sensitive information. Please remove the following: {pii_details}',
+                'pii_types': [p['description'] for p in pii_found]
+            }), 400
         
         session_data = session_manager.get_session(file_id)
         
@@ -440,6 +461,11 @@ def chat_message():
                 'zip_data': form_data if form_type == 'ZIP' else None
             }
         ))
+        
+        # SECURITY: Validate AI response to detect leaked system info
+        if not sanitizer.validate_ai_response(response):
+            print(f"WARNING: AI response failed security validation for file_id={file_id}")
+            response = "I apologize, but I cannot provide that response. Please ask a specific question about your form validation."
         
         session_manager.update_chat_history(file_id, message, response)
         

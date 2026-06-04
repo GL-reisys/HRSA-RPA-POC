@@ -124,7 +124,7 @@ export default function ChatInterface({
       console.error('Error sending message:', err);
       const errorMessage = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: err.message || 'Sorry, I encountered an error. Please try again.',
         timestamp: new Date().toISOString()
       };
       setChatHistory(prev => [...prev, errorMessage]);

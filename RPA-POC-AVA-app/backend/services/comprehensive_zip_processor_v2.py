@@ -35,7 +35,7 @@ class ComprehensiveZipProcessorV2:
     
     # Accepted file formats
     ACCEPTED_EXTENSIONS = {
-        '.pdf', '.doc', '.docx', '.rtf', '.txt', '.wpd', '.xls', '.xlsx', '.vsd'
+        '.pdf', '.doc', '.docx', '.rtf', '.txt', '.wpd', '.xls', '.xlsx', '.vsd', '.vsdx'
     }
     
     # Maximum limits
@@ -266,7 +266,12 @@ class ComprehensiveZipProcessorV2:
                 total_counted_pages += page_info['pages']
             
             # Count pages for excluded files (for information only)
+            # BUT: Don't convert system files like manifest.txt - only count SF-424 and PPOP
             for file_info in excluded_files:
+                # Skip system files and GrantApplication - don't convert them
+                if file_info['reason'] in ['System file', 'GrantApplication']:
+                    continue
+                
                 page_info = self._count_file_pages(file_info['path'])
                 page_info['file_type'] = 'excluded'
                 page_info['exclusion_reason'] = file_info['reason']
@@ -384,7 +389,12 @@ class ComprehensiveZipProcessorV2:
                 if info.is_dir():
                     continue
                 
-                # Security: prevent path traversal
+                # Security: explicit path traversal check
+                if '..' in info.filename or info.filename.startswith('/') or info.filename.startswith('\\'):
+                    print(f"Security warning: Path traversal detected in {info.filename}")
+                    continue
+                
+                # Security: prevent path traversal (additional safeguard)
                 filename = os.path.basename(info.filename)
                 if not filename or filename.startswith('.'):
                     continue
