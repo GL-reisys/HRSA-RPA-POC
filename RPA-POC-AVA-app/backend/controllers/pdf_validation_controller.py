@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import os
 import uuid
 import asyncio
+import logging
 from services.xfa_pdf_extractor import XFAPdfExtractor
 from services.form_mapper import FormMapper
 from services.sf424_validator import SF424Validator
@@ -13,6 +14,8 @@ from services.session_manager import SessionManager
 from services.input_sanitizer import get_sanitizer
 from config.runtime import resolve_app_path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 pdf_bp = Blueprint('pdf', __name__)
 
@@ -406,6 +409,12 @@ def chat_message():
     Rate limited to 10 requests per minute per IP to prevent abuse.
     """
     try:
+        # SECURITY: Validate content-length before parsing JSON (prevents JSON bomb/DoS)
+        # Max 1MB for chat messages (form data + history should be <100KB typically)
+        content_length = request.content_length
+        if content_length and content_length > 1_048_576:  # 1MB
+            return jsonify({'error': 'Request payload too large'}), 413
+        
         data = request.get_json()
         file_id = data.get('file_id')
         message = data.get('message')
@@ -422,14 +431,18 @@ def chat_message():
                 'error': f'Invalid message: {str(e)}'
             }), 400
         
-        # SECURITY: Check for PII in user message
+        # SECURITY: Check for PII in user CHAT message only (not form data)
+        # NOTE: PII in form fields (SSN, DOB, addresses) is legitimate and NOT checked
+        #       Only user-typed chat messages are scanned to prevent accidental exposure
         pii_found = sanitizer.detect_pii(message)
         if pii_found:
+            pii_types = [p['description'] for p in pii_found]
             pii_details = ', '.join([f"{p['description']} ({p['masked_value']})" for p in pii_found])
-            print(f"⚠️ PII detected in chat message for file_id={file_id}: {pii_details}")
+            # Log only PII types, NOT actual values (no PHI/PII in logs)
+            logger.warning(f"PII detected in chat message for file_id={file_id}, types: {pii_types} (values not logged)")
             return jsonify({
                 'error': f'Your message contains sensitive information. Please remove the following: {pii_details}',
-                'pii_types': [p['description'] for p in pii_found]
+                'pii_types': pii_types
             }), 400
         
         session_data = session_manager.get_session(file_id)

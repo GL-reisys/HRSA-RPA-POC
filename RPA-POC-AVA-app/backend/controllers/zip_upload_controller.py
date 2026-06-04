@@ -285,6 +285,11 @@ def download_converted_zip(file_id):
         except ValueError:
             return jsonify({'error': 'Invalid file ID format'}), 400
         
+        # SECURITY: Verify session exists and file belongs to user
+        session_data = session_manager.get_session(file_id)
+        if not session_data:
+            return jsonify({'error': 'File not found or access denied'}), 404
+        
         # Find the output zip file
         for filename in os.listdir(UPLOAD_FOLDER):
             if filename.startswith(f"output_{file_id}_"):

@@ -114,6 +114,10 @@ def create_app():
     app.register_blueprint(document_bp)
     app.register_blueprint(pdf_bp)
     app.register_blueprint(zip_bp)
+    
+    # Apply specific rate limits to high-risk endpoints
+    limiter.limit("10 per minute")(app.view_functions['pdf.chat_message'])
+    limiter.limit("20 per hour")(app.view_functions['zip.upload_zip'])
 
     @app.route('/')
     def index():
