@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import os
 import uuid
 import asyncio
+import logging
 from services.xfa_pdf_extractor import XFAPdfExtractor
 from services.form_mapper import FormMapper
 from services.sf424_validator import SF424Validator
@@ -10,8 +11,11 @@ from services.ppop_field_mapper import PPOPFieldMapper
 from services.ppop_validator import PPOPValidator
 from services.ai_service import AIService
 from services.session_manager import SessionManager
+from services.input_sanitizer import get_sanitizer
 from config.runtime import resolve_app_path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 pdf_bp = Blueprint('pdf', __name__)
 
@@ -27,6 +31,7 @@ ppop_mapper = PPOPFieldMapper()
 validator = SF424Validator()
 ppop_validator = PPOPValidator()
 ai_service = AIService()
+sanitizer = get_sanitizer()
 session_manager = SessionManager(
     resolve_app_path(os.getenv('SESSION_STORAGE_PATH'), 'data/sessions.json'),
     upload_folder=UPLOAD_FOLDER,
@@ -401,8 +406,15 @@ def analyze_pdf():
 def chat_message():
     """
     Send chat message and get AI response with form context.
+    Rate limited to 10 requests per minute per IP to prevent abuse.
     """
     try:
+        # SECURITY: Validate content-length before parsing JSON (prevents JSON bomb/DoS)
+        # Max 1MB for chat messages (form data + history should be <100KB typically)
+        content_length = request.content_length
+        if content_length and content_length > 1_048_576:  # 1MB
+            return jsonify({'error': 'Request payload too large'}), 413
+        
         data = request.get_json()
         file_id = data.get('file_id')
         message = data.get('message')
@@ -410,6 +422,28 @@ def chat_message():
         
         if not file_id or not message:
             return jsonify({'error': 'file_id and message are required'}), 400
+        
+        # SECURITY: Sanitize user input to prevent prompt injection
+        try:
+            message = sanitizer.sanitize_message(message)
+        except ValueError as e:
+            return jsonify({
+                'error': f'Invalid message: {str(e)}'
+            }), 400
+        
+        # SECURITY: Check for PII in user CHAT message only (not form data)
+        # NOTE: PII in form fields (SSN, DOB, addresses) is legitimate and NOT checked
+        #       Only user-typed chat messages are scanned to prevent accidental exposure
+        pii_found = sanitizer.detect_pii(message)
+        if pii_found:
+            pii_types = [p['description'] for p in pii_found]
+            pii_details = ', '.join([f"{p['description']} ({p['masked_value']})" for p in pii_found])
+            # Log only PII types, NOT actual values (no PHI/PII in logs)
+            logger.warning(f"PII detected in chat message for file_id={file_id}, types: {pii_types} (values not logged)")
+            return jsonify({
+                'error': f'Your message contains sensitive information. Please remove the following: {pii_details}',
+                'pii_types': pii_types
+            }), 400
         
         session_data = session_manager.get_session(file_id)
         
@@ -440,6 +474,11 @@ def chat_message():
                 'zip_data': form_data if form_type == 'ZIP' else None
             }
         ))
+        
+        # SECURITY: Validate AI response to detect leaked system info
+        if not sanitizer.validate_ai_response(response):
+            print(f"WARNING: AI response failed security validation for file_id={file_id}")
+            response = "I apologize, but I cannot provide that response. Please ask a specific question about your form validation."
         
         session_manager.update_chat_history(file_id, message, response)
         

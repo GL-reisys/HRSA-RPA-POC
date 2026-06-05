@@ -23,8 +23,10 @@ def validate_environment():
 
 validate_environment()
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from controllers.document_controller import document_bp
 from controllers.pdf_validation_controller import pdf_bp
 from controllers.zip_upload_controller import zip_bp
@@ -50,6 +52,14 @@ def create_app():
             "allow_headers": ["Content-Type"],
         }
     })
+    
+    # Initialize rate limiter for API protection
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
 
     app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024  # 250MB to support ZIP files up to 200MB
     app.config['UPLOAD_FOLDER'] = resolve_app_path(os.getenv('UPLOAD_DIR'), 'uploads')
@@ -104,6 +114,10 @@ def create_app():
     app.register_blueprint(document_bp)
     app.register_blueprint(pdf_bp)
     app.register_blueprint(zip_bp)
+    
+    # Apply specific rate limits to high-risk endpoints
+    limiter.limit("10 per minute")(app.view_functions['pdf.chat_message'])
+    limiter.limit("20 per hour")(app.view_functions['zip.upload_zip'])
 
     @app.route('/')
     def index():
@@ -140,10 +154,15 @@ def create_app():
     def request_entity_too_large(error):
         return jsonify({'error': 'File size exceeds maximum limit of 250MB'}), 413
 
+    # Store limiter on app for blueprint access
+    app.limiter = limiter
+    
     return app
 
 
 app = create_app()
+# Export limiter for use in blueprints
+limiter = app.limiter
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=get_port(), debug=is_debug_enabled())

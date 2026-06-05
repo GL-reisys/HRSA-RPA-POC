@@ -215,10 +215,9 @@ export default function ZipUploadPage({ onUploadComplete }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '32px',
               marginBottom: '12px'
             }}>
-              📁
+              <img src="/folder-zip-icon.png" alt="Processing" style={{ width: '48px', height: '48px' }} />
             </div>
             <div style={{
               width: '40px',
@@ -247,8 +246,15 @@ export default function ZipUploadPage({ onUploadComplete }) {
           
           {/* Arrow */}
           <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#005ea2', marginBottom: '8px' }}>AVA Validates</div>
-            <div style={{ fontSize: '24px', color: '#64748b' }}>──────▶</div>
+            
+<div style={{ fontSize: '14px', fontWeight: '600', color: '#005ea2', marginBottom: '12px' }}>
+  AVA Validates
+</div>
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" style={{ margin: '0 auto' }}>
+  <path d="M5 20 L95 20" stroke="#1a4480" strokeWidth="4" strokeLinecap="round"/>
+  <path d="M85 10 L100 20 L85 30" stroke="#1a4480" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+</svg>
+
           </div>
           
           {/* Step 3 */}
@@ -360,13 +366,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                 margin: '0 auto 20px',
                 position: 'relative'
               }}>
-                <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-                  <rect x="16" y="8" width="40" height="52" rx="3" fill="white" stroke="#cbd5e0" strokeWidth="2"/>
-                  <rect x="30" y="24" width="18" height="12" rx="2" fill="#2563eb"/>
-                  <text x="36" y="34" fill="white" fontSize="10" fontWeight="bold">ZIP</text>
-                  <circle cx="52" cy="52" r="14" fill="#2563eb"/>
-                  <path d="M52 46v12m-6-6h12" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                </svg>
+                <img src="/zip-file-icon.png" alt="ZIP File" style={{ width: '72px', height: '72px' }} />
               </div>
               <h3 style={{ 
                 fontSize: '20px', 

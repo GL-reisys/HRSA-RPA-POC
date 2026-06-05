@@ -15,6 +15,7 @@ from services.session_manager import SessionManager
 from services.file_validator import FileValidator
 from services.logging_service import get_logger
 from services.file_lifecycle_manager import FileLifecycleManager
+from services.input_sanitizer import get_sanitizer
 from config.runtime import resolve_app_path
 from werkzeug.utils import secure_filename
 
@@ -29,9 +30,10 @@ session_manager = SessionManager(
     upload_folder=UPLOAD_FOLDER,
 )
 
-# Initialize file validator and logger
+# Initialize file validator, logger, and sanitizer
 file_validator = FileValidator()
 logger = get_logger()
+sanitizer = get_sanitizer()
 lifecycle_manager = FileLifecycleManager()
 
 # Initialize database service for validations (lazy initialization)
@@ -159,12 +161,14 @@ def upload_zip():
                 logger.log_validation(file_id, 'PAGE_COUNT', page_result, client_ip)
             
             # Prepare response - include fields for display
+            # SECURITY: Use sanitized filename in response
+            safe_display_name = sanitizer.sanitize_filename(file.filename)
             sf424_with_fields = result['sf424_validation'].copy() if result['sf424_validation'] else {}
             
             response = {
                 'file_id': file_id,
-                'file_name': file.filename,
-                'original_filename': file.filename,
+                'file_name': safe_display_name,
+                'original_filename': safe_display_name,
                 'status': 'success' if result['success'] else 'failed',
                 'sf424_validation': sf424_with_fields,
                 'ppop_validation': result['ppop_validation'],
@@ -215,9 +219,12 @@ def upload_zip():
                 response['page_count_message'] = f"Page count: {att_pages} attachment pages, {form_pages} form pages"
             
             # Store session data for chat to access
+            # SECURITY: Sanitize filename to prevent prompt injection via metadata
+            safe_display_name = sanitizer.sanitize_filename(file.filename)
+            
             session_data = {
                 'file_id': file_id,
-                'file_name': file.filename,
+                'file_name': safe_display_name,
                 'form_type': 'ZIP',
                 'form_data': {
                     'sf424': result['sf424_validation'],
@@ -272,6 +279,17 @@ def download_converted_zip(file_id):
         ZIP file download
     """
     try:
+        # SECURITY: Validate file_id is a valid UUID to prevent path traversal
+        try:
+            uuid.UUID(file_id)
+        except ValueError:
+            return jsonify({'error': 'Invalid file ID format'}), 400
+        
+        # SECURITY: Verify session exists and file belongs to user
+        session_data = session_manager.get_session(file_id)
+        if not session_data:
+            return jsonify({'error': 'File not found or access denied'}), 404
+        
         # Find the output zip file
         for filename in os.listdir(UPLOAD_FOLDER):
             if filename.startswith(f"output_{file_id}_"):
