@@ -85,14 +85,14 @@ def upload_zip():
             logger.log_error(None, 'VALIDATION_ERROR', f'Invalid file type: {file.filename}', client_ip)
             return jsonify({'error': 'Invalid Application filename extension - Please use a zip file with a Funding Opportunity Number'}), 400
         
-        # Validate ZIP filename format (must match HRSA-XX-YYY pattern)
+        # Validate ZIP filename format (must match HRSA-YY-XXX pattern)
         # Extract filename without extension
         filename_without_ext = file.filename.rsplit('.', 1)[0]
-        # Pattern: HRSA-YY-NNN where YY is 2-digit year and NNN is 3-digit funding opportunity number
+        # Pattern: HRSA-YY-XXX where YY is 2-digit fiscal year and XXX is 3-digit funding opportunity number
         hrsa_pattern = re.compile(r'^HRSA-\d{2}-\d{3}$', re.IGNORECASE)
         
         if not hrsa_pattern.match(filename_without_ext):
-            error_msg = f'Invalid Application filename format. Expected format: HRSA-XX-YYY (e.g., HRSA-26-091). Received: {file.filename}'
+            error_msg = f'Invalid Application filename format. Expected format: HRSA-YY-XXX (e.g., HRSA-26-091). Received: {file.filename}'
             logger.log_error(None, 'FILENAME_VALIDATION_ERROR', error_msg, client_ip)
             return jsonify({'error': 'Invalid Application filename format - Please rename it to Funding Opportunity Number'}), 400
         
