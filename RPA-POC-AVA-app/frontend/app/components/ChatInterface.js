@@ -242,7 +242,7 @@ export default function ChatInterface({
                   <Typography 
                     variant="caption" 
                     sx={{ 
-                      color: '#404040',
+                      color: '#3d3d3d',
                       display: 'block',
                       mb: 0.5
                     }}
@@ -276,7 +276,7 @@ export default function ChatInterface({
                   <Typography 
                     variant="caption" 
                     sx={{ 
-                      color: '#404040',
+                      color: '#3d3d3d',
                       display: 'block',
                       mt: 0.5,
                       textAlign: 'right'
@@ -291,7 +291,7 @@ export default function ChatInterface({
           {sending && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <CircularProgress size={20} />
-              <Typography variant="body2" sx={{ color: '#424242' }}>
+              <Typography variant="body2" sx={{ color: '#3d3d3d' }}>
                 AVA is typing...
               </Typography>
             </Box>

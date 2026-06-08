@@ -244,7 +244,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
           {/* Arrow */}
           <div style={{ textAlign: 'center', marginTop: '20px' }}>
             
-<div style={{ fontSize: '14px', fontWeight: '600', color: '#003d6b', marginBottom: '12px' }}>
+<div style={{ fontSize: '14px', fontWeight: '600', color: '#1a4480', marginBottom: '12px' }}>
   AVA Validates
 </div>
 <svg width="120" height="40" viewBox="0 0 120 40" fill="none" style={{ margin: '0 auto' }}>
@@ -278,7 +278,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               width: '40px',
               height: '40px',
               borderRadius: '50%',
-              background: progress === 100 ? '#2563eb' : '#64748b',
+              background: progress === 100 ? '#2563eb' : '#a7a9ac',
               color: 'white',
               display: 'flex',
               alignItems: 'center',
@@ -350,7 +350,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
                   transition: 'width 0.3s ease'
                 }} />
               </div>
-              <p style={{ fontSize: '14px', color: '#64748b' }}>
+              <p style={{ fontSize: '14px', color: '#a7a9ac' }}>
                 Please wait...
               </p>
             </div>
@@ -441,7 +441,7 @@ export default function ZipUploadPage({ onUploadComplete }) {
               textDecoration: 'none'
             }}
           >
-            <div style={{ fontSize: '16px', fontWeight: '700', color: '#0369a1', marginBottom: '4px' }}>
+            <div style={{ fontSize: '16px', fontWeight: '700', color: '#046b99', marginBottom: '4px' }}>
               Need Help?
             </div>
             <div style={{ fontSize: '14px', color: '#1a4480' }}>

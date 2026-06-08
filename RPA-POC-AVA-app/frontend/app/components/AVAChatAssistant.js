@@ -138,7 +138,7 @@ export default function AVAChatAssistant() {
       const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !adjustedPageCountPassed].filter(Boolean).length;
       
       // Left-aligned validation summary with exact spacing
-      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #003d6b;">📋 Validation Summary</div>\n';
+      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #1a4480;">📋 Validation Summary</div>\n';
       aiMessage += `✅ ${passedCount} Passed   ❌ ${failedCount} Failed\n\n`;
       aiMessage += '--------------------------------\n';
       
@@ -165,7 +165,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -221,7 +221,7 @@ export default function AVAChatAssistant() {
             // Detailed error explanations
             if (hasErrors && errors.length > 0) {
               errors.forEach((err, index) => {
-                aiMessage += `<span style="color: #991b1b; font-weight: 700;">${index + 1}. ${err.user_message}</span>\n`;
+                aiMessage += `<span style="color: #8b471c; font-weight: 700;">${index + 1}. ${err.user_message}</span>\n`;
                 
                 if (err.field_location) {
                   aiMessage += `   • ${err.field_location}\n`;
@@ -240,7 +240,7 @@ export default function AVAChatAssistant() {
                 
                 // Only show guidance if it exists and is not empty
                 if (err.guidance && err.guidance.trim() !== '') {
-                  aiMessage += '   <span style="color: #004d99; font-weight: 600;">How to Fix:</span>\n';
+                  aiMessage += '   <span style="color: #1a4480; font-weight: 600;">How to Fix:</span>\n';
                   const guidanceText = err.guidance.replace(/<br>/g, '\n   ');
                   const cleanGuidance = guidanceText.replace(/<[^>]+>/g, '');
                   cleanGuidance.split('\n').forEach(line => {
@@ -259,7 +259,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ Address provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -273,7 +273,7 @@ export default function AVAChatAssistant() {
       
       // 4. PAGE COUNT SECTION - Show NOFO error if mismatch exists
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         
         // Show NOFO mismatch error if it exists
         if (hasNofoMismatch) {
@@ -452,7 +452,7 @@ export default function AVAChatAssistant() {
       const failedCount = [hasSF424 && !sf424Passed, hasPPOP && !ppopPassed, hasPageCount && !adjustedPageCountPassed].filter(Boolean).length;
       
       // Left-aligned validation summary with exact spacing
-      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #003d6b;">📋 Validation Summary</div>\n';
+      aiMessage += '<div style="font-size: 18px; font-weight: 700; color: #1a4480;">📋 Validation Summary</div>\n';
       aiMessage += `✅ ${passedCount} Passed   ❌ ${failedCount} Failed\n\n`;
       aiMessage += '--------------------------------\n';
       
@@ -479,7 +479,7 @@ export default function AVAChatAssistant() {
       
       // 2. SF-424 SECTION
       if (hasSF424) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>SF-424 Validation</div>\n';
         
         const sf424 = zipResult.sf424_validation;
         
@@ -535,7 +535,7 @@ export default function AVAChatAssistant() {
             // Detailed error explanations
             if (hasErrors && errors.length > 0) {
               errors.forEach((err, index) => {
-                aiMessage += `<span style="color: #991b1b; font-weight: 700;">${index + 1}. ${err.user_message}</span>\n`;
+                aiMessage += `<span style="color: #8b471c; font-weight: 700;">${index + 1}. ${err.user_message}</span>\n`;
                 
                 if (err.field_location) {
                   aiMessage += `   • ${err.field_location}\n`;
@@ -554,7 +554,7 @@ export default function AVAChatAssistant() {
                 
                 // Only show guidance if it exists and is not empty
                 if (err.guidance && err.guidance.trim() !== '') {
-                  aiMessage += '   <span style="color: #004d99; font-weight: 600;">How to Fix:</span>\n';
+                  aiMessage += '   <span style="color: #1a4480; font-weight: 600;">How to Fix:</span>\n';
                   const guidanceText = err.guidance.replace(/<br>/g, '\n   ');
                   const cleanGuidance = guidanceText.replace(/<[^>]+>/g, '');
                   cleanGuidance.split('\n').forEach(line => {
@@ -573,7 +573,7 @@ export default function AVAChatAssistant() {
       
       // 3. PPOP SECTION
       if (hasPPOP) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Performance Site</div>\n';
         if (ppopPassed) {
           aiMessage += '✅ Address provided in the Performance Site form passed all validations\n\n';
         } else if (zipResult.ppop_validation.validation_results?.errors) {
@@ -587,7 +587,7 @@ export default function AVAChatAssistant() {
       
       // 4. PAGE COUNT SECTION - Show NOFO error if mismatch exists
       if (hasPageCount) {
-        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #003d6b; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#003d6b" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
+        aiMessage += '<div style="font-size: 16px; font-weight: 700; margin: 8px 0; color: #1a4480; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4480" stroke-width="2" style="margin-right: 8px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Application Page Limit Validation</div>\n';
         
         // Show NOFO mismatch error if it exists
         if (hasNofoMismatch) {
@@ -688,10 +688,10 @@ export default function AVAChatAssistant() {
         {uploading ? (
           <Box sx={{ py: 4 }}>
             <CircularProgress size={60} sx={{ mb: 3, color: '#1e4d5a' }} />
-            <Typography variant="h6" sx={{ color: '#424242', fontWeight: 500, mb: 1 }}>
+            <Typography variant="h6" sx={{ color: '#3d3d3d', fontWeight: 500, mb: 1 }}>
               Processing ZIP file...
             </Typography>
-            <Typography variant="body2" sx={{ color: '#424242' }}>
+            <Typography variant="body2" sx={{ color: '#3d3d3d' }}>
               Validating SF-424, PPOP, and attachments...
             </Typography>
           </Box>
@@ -700,7 +700,7 @@ export default function AVAChatAssistant() {
             <Typography variant="h6" sx={{ color: '#1e4d5a', fontWeight: 600, mb: 2 }}>
               Upload ZIP File Containing Forms & Attachments
             </Typography>
-            <Typography variant="body1" sx={{ mb: 4, color: '#424242' }}>
+            <Typography variant="body1" sx={{ mb: 4, color: '#3d3d3d' }}>
               Application Package provided
             </Typography>
             
@@ -722,13 +722,13 @@ export default function AVAChatAssistant() {
             >
               <input {...getInputProps()} aria-label="Upload ZIP file containing your application forms and attachments" title="Upload ZIP file containing your application forms and attachments" />
               <UploadFileIcon sx={{ fontSize: 60, color: '#1e4d5a', mb: 2 }} />
-              <Typography variant="body1" sx={{ color: '#424242', mb: 1 }}>
+              <Typography variant="body1" sx={{ color: '#3d3d3d', mb: 1 }}>
                 Drag and drop your ZIP file here
               </Typography>
-              <Typography variant="body2" sx={{ color: '#424242' }}>
+              <Typography variant="body2" sx={{ color: '#3d3d3d' }}>
                 or click to browse
               </Typography>
-              <Typography variant="caption" sx={{ mt: 2, display: 'block', color: '#424242' }}>
+              <Typography variant="caption" sx={{ mt: 2, display: 'block', color: '#3d3d3d' }}>
                 ZIP files only (Max 200MB)
               </Typography>
             </Box>
