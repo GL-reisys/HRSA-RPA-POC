@@ -326,32 +326,44 @@ class ComprehensiveZipProcessorV2:
         }
         
         pdf_to_count = file_path
+        converted_pdf_path = None
         
-        # Convert non-PDF files to PDF if converter available
-        if file_info['type'] != '.pdf':
-            if self.converter.can_convert():
-                converted_pdf = self.converter.convert_to_pdf(file_path)
-                if converted_pdf:
-                    pdf_to_count = converted_pdf
-                    file_info['converted'] = True
-                    file_info['type'] = '.pdf'
+        try:
+            # Convert non-PDF files to PDF if converter available
+            if file_info['type'] != '.pdf':
+                if self.converter.can_convert():
+                    converted_pdf = self.converter.convert_to_pdf(file_path)
+                    if converted_pdf:
+                        pdf_to_count = converted_pdf
+                        converted_pdf_path = converted_pdf
+                        file_info['converted'] = True
+                        file_info['type'] = '.pdf'
+                    else:
+                        file_info['conversion_failed'] = True
+                        file_info['error'] = 'Conversion failed'
                 else:
-                    file_info['conversion_failed'] = True
-                    file_info['error'] = 'Conversion failed'
-            else:
-                file_info['needs_conversion'] = True
-                file_info['error'] = 'No conversion tool available'
+                    file_info['needs_conversion'] = True
+                    file_info['error'] = 'No conversion tool available'
+            
+            # Count pages in PDF
+            if pdf_to_count.endswith('.pdf'):
+                try:
+                    with pikepdf.open(pdf_to_count) as pdf:
+                        file_info['pages'] = len(pdf.pages)
+                except Exception as e:
+                    file_info['pages'] = 0
+                    file_info['error'] = f'Could not count pages: {str(e)}'
+            
+            return file_info
         
-        # Count pages in PDF
-        if pdf_to_count.endswith('.pdf'):
-            try:
-                with pikepdf.open(pdf_to_count) as pdf:
-                    file_info['pages'] = len(pdf.pages)
-            except Exception as e:
-                file_info['pages'] = 0
-                file_info['error'] = f'Could not count pages: {str(e)}'
-        
-        return file_info
+        finally:
+            # Clean up converted PDF to prevent temp file accumulation
+            if converted_pdf_path and os.path.exists(converted_pdf_path):
+                try:
+                    os.remove(converted_pdf_path)
+                    print(f"  🧹 Cleaned up converted PDF: {os.path.basename(converted_pdf_path)}")
+                except Exception as e:
+                    print(f"  ⚠️  Could not delete converted PDF: {str(e)}")
     
     def _validate_zip(self, zip_path: str) -> Dict[str, Any]:
         """Validate zip file security"""

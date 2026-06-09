@@ -264,6 +264,8 @@ export default function ChatInterface({
                 
                 <Typography 
                   variant="body1"
+                  role={msg.role === 'assistant' && index === 1 ? 'status' : undefined}
+                  aria-live={msg.role === 'assistant' && index === 1 ? 'polite' : undefined}
                   dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
                   sx={{
                     '& strong': { fontWeight: 700 },

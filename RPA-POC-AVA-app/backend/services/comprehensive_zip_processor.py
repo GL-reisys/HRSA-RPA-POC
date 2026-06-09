@@ -402,34 +402,46 @@ class ComprehensiveZipProcessor:
             }
             
             pdf_to_count = file_path
+            converted_pdf_path = None
             
-            # Convert non-PDF files to PDF if converter available
-            if file_info['type'] != '.pdf':
-                if self.converter.can_convert():
-                    print(f"Converting {file_info['name']} to PDF...")
-                    converted_pdf = self.converter.convert_to_pdf(file_path)
-                    if converted_pdf:
-                        pdf_to_count = converted_pdf
-                        file_info['converted'] = True
-                        file_info['type'] = '.pdf'
-                        result['converted'] += 1
+            try:
+                # Convert non-PDF files to PDF if converter available
+                if file_info['type'] != '.pdf':
+                    if self.converter.can_convert():
+                        print(f"Converting {file_info['name']} to PDF...")
+                        converted_pdf = self.converter.convert_to_pdf(file_path)
+                        if converted_pdf:
+                            pdf_to_count = converted_pdf
+                            converted_pdf_path = converted_pdf
+                            file_info['converted'] = True
+                            file_info['type'] = '.pdf'
+                            result['converted'] += 1
+                        else:
+                            file_info['conversion_failed'] = True
+                            file_info['error'] = 'Conversion failed'
                     else:
-                        file_info['conversion_failed'] = True
-                        file_info['error'] = 'Conversion failed'
-                else:
-                    file_info['needs_conversion'] = True
-                    file_info['error'] = 'No conversion tool available (install MS Office or LibreOffice)'
+                        file_info['needs_conversion'] = True
+                        file_info['error'] = 'No conversion tool available (install MS Office or LibreOffice)'
+                
+                # Count pages in PDF
+                if pdf_to_count.endswith('.pdf'):
+                    try:
+                        with pikepdf.open(pdf_to_count) as pdf:
+                            file_info['pages'] = len(pdf.pages)
+                            result['total_pages'] += file_info['pages']
+                    except Exception as e:
+                        file_info['pages'] = 0
+                        file_info['error'] = f'Could not count pages: {str(e)}'
+                
+                result['files'].append(file_info)
             
-            # Count pages in PDF
-            if pdf_to_count.endswith('.pdf'):
-                try:
-                    with pikepdf.open(pdf_to_count) as pdf:
-                        file_info['pages'] = len(pdf.pages)
-                        result['total_pages'] += file_info['pages']
-                except Exception as e:
-                    file_info['pages'] = 0
-                    file_info['error'] = f'Could not count pages: {str(e)}'
-            
-            result['files'].append(file_info)
+            finally:
+                # Clean up converted PDF to prevent temp file accumulation
+                if converted_pdf_path and os.path.exists(converted_pdf_path):
+                    try:
+                        os.remove(converted_pdf_path)
+                        print(f"  🧹 Cleaned up converted PDF: {os.path.basename(converted_pdf_path)}")
+                    except Exception as e:
+                        print(f"  ⚠️  Could not delete converted PDF: {str(e)}")
         
         return result
