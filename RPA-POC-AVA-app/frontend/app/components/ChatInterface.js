@@ -176,7 +176,7 @@ export default function ChatInterface({
       p: 3 
     }}>
       <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#005ea2' }}>
+      <Paper component="header" role="banner" elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#005ea2' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
             <Typography variant="h5" sx={{ fontWeight: 600, color: '#ffffff' }}>
@@ -201,7 +201,7 @@ export default function ChatInterface({
         </Box>
       </Paper>
 
-      <Paper elevation={1} sx={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
+      <Paper component="main" role="main" elevation={1} sx={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
         <Box 
           sx={{ 
             flex: 1, 
@@ -225,12 +225,12 @@ export default function ChatInterface({
                   p: 2.5,
                   maxWidth: '70%',
                   backgroundColor: msg.role === 'user' 
-                    ? '#e8f4f8' 
-                    : '#ccecf2',
+                    ? '#e0f2fe' 
+                    : '#cffafe',
                   background: msg.role === 'user' 
-                    ? '#e8f4f8' 
-                    : '#ccecf2',
-                  color: '#000',
+                    ? '#e0f2fe' 
+                    : '#cffafe',
+                  color: '#0a0a0a',
                   border: msg.role === 'user' ? '1px solid #90caf9' : '1px solid #d0d0d0',
                   borderRadius: 2,
                   boxShadow: msg.role === 'assistant' && (index === 1 || msg.content.includes('Not ready for submission') || msg.content.includes('Ready for submission') || msg.content.includes('Fields validated successfully') || msg.content.includes('Need to Fix'))
@@ -242,7 +242,7 @@ export default function ChatInterface({
                   <Typography 
                     variant="caption" 
                     sx={{ 
-                      color: '#666',
+                      color: '#3d3d3d',
                       display: 'block',
                       mb: 0.5
                     }}
@@ -264,6 +264,8 @@ export default function ChatInterface({
                 
                 <Typography 
                   variant="body1"
+                  role={msg.role === 'assistant' && index === 1 ? 'status' : undefined}
+                  aria-live={msg.role === 'assistant' && index === 1 ? 'polite' : undefined}
                   dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
                   sx={{
                     '& strong': { fontWeight: 700 },
@@ -276,7 +278,7 @@ export default function ChatInterface({
                   <Typography 
                     variant="caption" 
                     sx={{ 
-                      color: '#666',
+                      color: '#3d3d3d',
                       display: 'block',
                       mt: 0.5,
                       textAlign: 'right'
@@ -291,7 +293,7 @@ export default function ChatInterface({
           {sending && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <CircularProgress size={20} />
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{ color: '#3d3d3d' }}>
                 AVA is typing...
               </Typography>
             </Box>
@@ -331,10 +333,12 @@ export default function ChatInterface({
 
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
+              id="ava-chat-input"
               fullWidth
               multiline
-              maxRows={3}
+              rows={2}
               placeholder="Type your message here..."
+              label="Ask AVA a question"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -343,6 +347,10 @@ export default function ChatInterface({
               size="small"
               inputRef={setInputRef}
               sx={{ backgroundColor: '#fff' }}
+              inputProps={{
+                'aria-label': 'Ask AVA a question about your application',
+                'title': 'Ask AVA a question about your application'
+              }}
             />
             <Button
               variant="contained"
