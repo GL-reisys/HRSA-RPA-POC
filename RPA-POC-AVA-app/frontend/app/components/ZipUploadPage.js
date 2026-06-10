@@ -2,6 +2,18 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
+async function readJsonOrText(response) {
+  const body = await response.text();
+  if (!body) {
+    return null;
+  }
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
 export default function ZipUploadPage({ onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -33,23 +45,23 @@ export default function ZipUploadPage({ onUploadComplete }) {
 
       setProgress(70);
 
+      const payload = await readJsonOrText(response);
+
       if (!response.ok) {
-        let errorMessage = 'Upload failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || 'Upload failed';
-        } catch (parseError) {
-          const textResponse = await response.text();
-          if (textResponse.includes('Internal Server Error') || textResponse.includes('500')) {
-            errorMessage = 'Server error occurred. Please try again or contact support if the issue persists.';
-          } else {
-            errorMessage = `Server error: ${response.status} ${response.statusText}`;
-          }
-        }
+        const errorMessage = 
+          (payload && typeof payload === 'object' && payload.error) ||
+          (typeof payload === 'string' && (payload.includes('Internal Server Error') || payload.includes('500')) 
+            ? 'Server error occurred. Please try again or contact support if the issue persists.'
+            : `Server error: ${response.status} ${response.statusText}`) ||
+          'Upload failed';
         throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      if (!payload || typeof payload !== 'object') {
+        throw new Error('Upload returned an unexpected response.');
+      }
+
+      const result = payload;
       setProgress(100);
 
       setTimeout(() => {
