@@ -234,7 +234,13 @@ class PPOPValidator:
                 county_fips = county_data.get('State County FIPS Code')
             elif target.get('Target') == 'CONGDIST' and target.get('Preferred'):
                 district_data = target['Preferred'][0]
-                cong_district = district_data.get('Congressional District Code')
+                raw_district = district_data.get('Congressional District Code')
+                # Format to XX-XXX (e.g., CA48 → CA-048)
+                if raw_district:
+                    from models.validation_error import ValidationErrorFactory
+                    cong_district = ValidationErrorFactory._format_district_for_display(raw_district)
+                else:
+                    cong_district = raw_district
         
         # Extract match level
         match_level = ''
