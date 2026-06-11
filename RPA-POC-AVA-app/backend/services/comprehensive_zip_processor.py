@@ -108,8 +108,23 @@ class ComprehensiveZipProcessor:
             for file_path in extracted_files:
                 filename = os.path.basename(file_path).lower()
                 
-                # Identify SF-424
-                if 'sf-424' in filename or 'sf424' in filename:
+                # Identify SF-424 (but exclude SF-424A, SF-424R, R&R SF-424, and attachment files with SF424 in name)
+                if ('sf-424' in filename or 'sf424' in filename):
+                    # Exclude SF-424A, SF-424R, and R&R SF-424 (Research & Related)
+                    if ('sf424a' in filename or 'sf-424a' in filename or
+                        'sf424r' in filename or 'sf-424r' in filename or
+                        'rr_sf424' in filename or 'rr-sf424' in filename):
+                        continue  # Not standard SF-424
+                    
+                    # Exclude attachments with "AdditionalProjectTitle" or numeric IDs after SF424
+                    if 'additionalprojecttitle' in filename:
+                        continue  # This is an attachment, not the form
+                    
+                    # Exclude files with pattern: SF424_4_0-[numbers]-[text]
+                    import re
+                    if re.search(r'sf424[_-]?\d+[_-]?\d+-\d+-', filename):
+                        continue  # This is an attachment with custom ID
+                    
                     sf424_file = file_path
                 # Identify PPOP
                 elif 'ppop' in filename or 'performance' in filename or 'site' in filename:

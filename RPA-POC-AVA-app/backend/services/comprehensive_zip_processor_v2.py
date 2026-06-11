@@ -76,12 +76,29 @@ class ComprehensiveZipProcessorV2:
         filename_lower = filename.lower()
         
         # First check for common form patterns regardless of database
-        # SF-424 variations: Accept any filename containing "sf424" or "sf-424" (but NOT SF-424A which is a different form)
-        # Examples: SF424_4_0, SF-424, sf424, Form_SF424, SF424_Custom, etc.
+        # SF-424 variations: Accept only ACTUAL SF-424 forms, not attachments with SF424 in name
+        # VALID: Form SF424_4_0-V4.0.pdf, SF-424.pdf, sf424.pdf
+        # INVALID (attachments): SF424_4_0-AdditionalProjectTitle-1235-xxx.pdf, SF424_4_0-1234-CustomName.pdf
+        # INVALID (R&R forms): RR_SF424 (Research & Related forms - different structure, should count in page limit)
         if ('sf424' in filename_lower or 'sf-424' in filename_lower):
-            # Exclude SF-424A (a different form)
-            if 'sf424a' not in filename_lower and 'sf-424a' not in filename_lower:
-                return 'SF-424'
+            # Exclude SF-424A, SF-424R, and R&R SF-424 (different forms that should count in page limit)
+            if ('sf424a' in filename_lower or 'sf-424a' in filename_lower or
+                'sf424r' in filename_lower or 'sf-424r' in filename_lower or
+                'rr_sf424' in filename_lower or 'rr-sf424' in filename_lower):
+                return None  # Not standard SF-424
+            
+            # Exclude attachments with "AdditionalProjectTitle" or numeric IDs after SF424
+            # Pattern: SF424_4_0-1234-xxx or SF424_4_0-AdditionalProjectTitle-xxx
+            if 'additionalprojecttitle' in filename_lower:
+                return None  # This is an attachment, not the form
+            
+            # Exclude files with pattern: SF424_4_0-[numbers]-[text]
+            # Example: SF424_4_0-1234-Homeless Map.pdf
+            import re
+            if re.search(r'sf424[_-]?\d+[_-]?\d+-\d+-', filename_lower):
+                return None  # This is an attachment with custom ID
+            
+            return 'SF-424'
         
         # PPOP/PerformanceSite variations: PerformanceSite_4, PPOP
         if 'performancesite_4' in filename_lower or 'ppop' in filename_lower:

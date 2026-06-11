@@ -52,7 +52,23 @@ class FormMapper:
         
         # Application Information
         sf424['submission_type'] = self._get_string_value(fields, raw_fields, 'SubmissionType')
-        sf424['application_type'] = self._get_string_value(fields, raw_fields, 'ApplicationType')
+        
+        # Application Type - Check radio button fields instead of generic "ApplicationType"
+        # XFA forms have separate fields for each option: ApplicationType_New, ApplicationType_Continuation, etc.
+        app_type_value = self._get_string_value(fields, raw_fields, 'ApplicationType')
+        if app_type_value and app_type_value.lower() in ['new', 'continuation', 'revision', '1', '2', '3']:
+            sf424['application_type'] = app_type_value
+        else:
+            # Check individual radio button fields
+            if self._get_string_value(fields, raw_fields, 'ApplicationType_New') == 'On':
+                sf424['application_type'] = '1'
+            elif self._get_string_value(fields, raw_fields, 'ApplicationType_Continuation') == 'On':
+                sf424['application_type'] = '2'
+            elif self._get_string_value(fields, raw_fields, 'ApplicationType_Revision') == 'On':
+                sf424['application_type'] = '3'
+            else:
+                sf424['application_type'] = app_type_value
+        
         sf424['revision_type'] = self._get_string_value(fields, raw_fields, 'RevisionType')
         sf424['revision_other_specify'] = self._get_string_value(fields, raw_fields, 'RevisionOtherSpecify')
         sf424['date_received'] = self._get_date_value(fields, raw_fields, 'DateReceived')

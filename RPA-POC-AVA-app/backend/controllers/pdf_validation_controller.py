@@ -457,8 +457,14 @@ def chat_message():
         # For ZIP files, extract SF-424 fields from nested structure
         if form_type == 'ZIP' and 'sf424' in form_data:
             sf424_data = form_data.get('sf424', {})
-            actual_form_data = sf424_data.get('fields', {})
-            validation_errors = sf424_data.get('errors', [])
+            # Handle R&R packages where SF-424 may be null
+            if sf424_data and isinstance(sf424_data, dict):
+                actual_form_data = sf424_data.get('fields', {})
+                validation_errors = sf424_data.get('errors', [])
+            else:
+                # R&R package without SF-424 - still pass PPOP data
+                actual_form_data = {}
+                validation_errors = session_data.get('validation_errors', [])
         else:
             actual_form_data = form_data
             validation_errors = session_data.get('validation_errors_ai', session_data.get('validation_errors', []))
